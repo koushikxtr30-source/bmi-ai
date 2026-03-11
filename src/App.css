@@ -1,0 +1,127 @@
+/* ─── App-specific styles ────────────────────────────────────────────────── */
+
+/* Smooth transitions */
+button, input, .card {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Input focus */
+input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.3);
+}
+
+/* Card hover */
+.card:hover {
+  border-color: hsl(var(--border) / 0.8);
+}
+
+/* Fade-in-up animation */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+  animation: fadeInUp 0.3s ease-out forwards;
+}
+
+/* Pulse for Live badge */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ─── iOS input zoom fix ─────────────────────────────────────────────────── */
+/* iOS zooms in when input font-size < 16px. Force 16px on mobile,
+   then scale visually with transform so layout stays compact.        */
+@media (max-width: 639px) {
+  input[type="number"],
+  input[type="text"],
+  input[type="email"],
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* ─── Safe area / notch support ─────────────────────────────────────────── */
+/* env() vars give us the iPhone notch + home bar insets */
+:root {
+  --safe-top:    env(safe-area-inset-top,    0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left:   env(safe-area-inset-left,   0px);
+  --safe-right:  env(safe-area-inset-right,  0px);
+}
+
+/* ─── Header safe area (PWA / iOS notch) ────────────────────────────────── */
+.header-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* ─── Bottom tab bar (mobile only) ──────────────────────────────────────── */
+.bottom-tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  /* Push bar content above iPhone home indicator */
+  padding-bottom: calc(var(--safe-bottom) + 4px);
+  z-index: 50;
+  display: flex;
+  border-top: 1px solid hsl(var(--border) / 0.5);
+  background: hsl(var(--background) / 0.97);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* On sm+ screens the bottom bar is hidden */
+@media (min-width: 640px) {
+  .bottom-tab-bar { display: none; }
+}
+
+/* Bottom bar item */
+.bottom-tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 10px 4px 6px;
+  /* min 44px touch target */
+  min-height: 56px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s;
+}
+
+/* ─── Page bottom padding on mobile (prevent content hiding under tab bar) */
+@media (max-width: 639px) {
+  .mobile-page-padding {
+    padding-bottom: calc(80px + var(--safe-bottom));
+  }
+}
+
+/* ─── Touch target minimum sizes ─────────────────────────────────────────── */
+@media (max-width: 639px) {
+  .touch-target {
+    min-height: 48px;
+    min-width: 48px;
+  }
+}
+
+/* ─── Responsive typography ─────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .text-3xl { font-size: 1.75rem; }
+  .text-4xl { font-size: 2rem; }
+}
+
+/* ─── Print ──────────────────────────────────────────────────────────────── */
+@media print {
+  header, footer { display: none; }
+  .card { break-inside: avoid; border: 1px solid #ccc; }
+}

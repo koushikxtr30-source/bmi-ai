@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="112" fill="#0c0c0e"/>
+  <!-- Green accent bar at top -->
+  <rect x="0" y="0" width="512" height="8" rx="4" fill="#22c55e"/>
+  <!-- Scale pole -->
+  <rect x="245" y="180" width="22" height="165" rx="11" fill="#ffffff" opacity="0.9"/>
+  <!-- Scale beam -->
+  <rect x="130" y="176" width="252" height="20" rx="10" fill="#ffffff" opacity="0.9"/>
+  <!-- Left pan chain -->
+  <rect x="148" y="196" width="6" height="60" rx="3" fill="#22c55e"/>
+  <!-- Right pan chain -->
+  <rect x="358" y="196" width="6" height="60" rx="3" fill="#22c55e"/>
+  <!-- Left pan -->
+  <rect x="112" y="252" width="80" height="14" rx="7" fill="#22c55e"/>
+  <!-- Right pan -->
+  <rect x="320" y="252" width="80" height="14" rx="7" fill="#22c55e"/>
+  <!-- Top pivot dot -->
+  <circle cx="256" cy="172" r="16" fill="#22c55e"/>
+  <!-- Scale base -->
+  <rect x="116" y="340" width="280" height="22" rx="11" fill="#22c55e"/>
+  <!-- Text -->
+  <text x="256" y="420" font-family="system-ui,-apple-system,sans-serif" font-size="72" font-weight="800" fill="#ffffff" text-anchor="middle">bmi</text>
+  <text x="256" y="480" font-family="system-ui,-apple-system,sans-serif" font-size="28" font-weight="400" fill="#22c55e" text-anchor="middle">.ai</text>
+</svg>
