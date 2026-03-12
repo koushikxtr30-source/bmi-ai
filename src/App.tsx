@@ -1616,16 +1616,62 @@ function HomePage({ dashboard, unitSystem, checkIns, profile, onNewCheckin, onOp
         </div>
       )}
 
-      {/* ── 4 metric cards ── */}
+      {/* ── BMI mini-hero + metric cards ── */}
       {dashboard.bmi && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {metrics.map(m => (
-            <div key={m.label} className="rounded-xl border border-border/50 p-3 text-center bg-card">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">{m.label}</p>
-              <p className="text-2xl font-bold" style={{ color: m.color ?? 'inherit' }}>{m.value}</p>
-              <p className="text-xs text-muted-foreground mt-1 capitalize">{m.sub}</p>
+        <div className="space-y-3">
+          {/* BMI hero row */}
+          <div className="rounded-2xl border p-5 flex items-center gap-5"
+            style={{ borderColor: dashboard.bmi.color + '40', background: `linear-gradient(135deg, ${dashboard.bmi.color}15 0%, ${dashboard.bmi.color}05 100%)` }}>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Body Mass Index</p>
+              <p className="text-6xl font-black tracking-tight leading-none" style={{ color: dashboard.bmi.color }}>{dashboard.bmi.bmi}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="px-2 py-0.5 rounded-full text-xs font-semibold border" style={{ color: dashboard.bmi.color, borderColor: dashboard.bmi.color + '50', background: dashboard.bmi.color + '15' }}>{dashboard.bmi.label}</span>
+                {bmiDelta !== null && (
+                  <span className={`text-xs font-medium ${bmiDelta < 0 ? 'text-primary' : bmiDelta > 0 ? 'text-orange-400' : 'text-muted-foreground'}`}>
+                    {bmiDelta > 0 ? '↑' : bmiDelta < 0 ? '↓' : '→'} {Math.abs(bmiDelta).toFixed(1)} since last
+                  </span>
+                )}
+              </div>
             </div>
-          ))}
+            <div className="text-right flex-shrink-0">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Healthy weight</p>
+              <p className="text-sm font-bold text-foreground mt-0.5">{dashboard.bmi.idealWeightMin}–{dashboard.bmi.idealWeightMax}</p>
+              <p className="text-[10px] text-muted-foreground">{wUnit}</p>
+            </div>
+          </div>
+          {/* Supporting metrics */}
+          <div className="grid grid-cols-3 gap-3">
+            {metrics.slice(1).map(m => (
+              <div key={m.label} className="rounded-xl border border-border/50 p-3 text-center bg-card">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">{m.label}</p>
+                <p className="text-xl font-black leading-none" style={{ color: m.color ?? 'inherit' }}>{m.value}</p>
+                <p className="text-[10px] text-muted-foreground mt-1 capitalize">{m.sub}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Stats row ── */}
+      {checkIns.length > 0 && (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-xl border border-border/50 bg-card p-3 text-center">
+            <p className="text-2xl font-black text-primary">{checkIns.length}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Check-ins</p>
+          </div>
+          <div className="rounded-xl border border-border/50 bg-card p-3 text-center">
+            <p className="text-2xl font-black text-foreground">
+              {Math.floor((Date.now() - new Date(checkIns[0].date).getTime()) / 86400000)}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Days tracking</p>
+          </div>
+          <div className="rounded-xl border border-border/50 bg-card p-3 text-center">
+            <p className="text-2xl font-black" style={{ color: wDelta !== null && wDelta < 0 ? 'hsl(var(--primary))' : wDelta !== null && wDelta > 0 ? 'hsl(35 95% 55%)' : 'hsl(var(--muted-foreground))' }}>
+              {wDelta !== null ? `${wDelta > 0 ? '+' : ''}${wDelta.toFixed(1)}` : '—'}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{wUnit} change</p>
+          </div>
         </div>
       )}
 
@@ -1650,15 +1696,50 @@ function HomePage({ dashboard, unitSystem, checkIns, profile, onNewCheckin, onOp
                 return (
                   <div className="bg-card border border-border rounded-lg px-2.5 py-1.5 shadow-xl text-xs">
                     <p className="text-muted-foreground">{payload[0]?.payload?.date}</p>
-                    <p className="font-semibold text-green-400">{payload[0]?.value} {wUnit}</p>
+                    <p className="font-semibold text-primary">{payload[0]?.value} {wUnit}</p>
                   </div>
                 )
               }} />
-              <Line type="monotone" dataKey="weight" stroke="#22c55e" strokeWidth={2} dot={{ fill: '#22c55e', r: 3 }} activeDot={{ r: 5 }} connectNulls />
+              <Line type="monotone" dataKey="weight" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: 'hsl(var(--primary))', r: 3 }} activeDot={{ r: 5 }} connectNulls />
             </LineChart>
           </ResponsiveContainer>
         </div>
       )}
+
+      {/* ── Quick insights ── */}
+      {dashboard.bmi && (() => {
+        const b = dashboard.bmi!
+        type Insight = { icon: React.ReactNode; text: string; color: string }
+        const insights: Insight[] = []
+        const iconCls = 'w-4 h-4 flex-shrink-0 mt-0.5'
+        if (b.category === 'obese' || b.category === 'overweight') {
+          insights.push({ icon: <Target className={`${iconCls} text-orange-400`} />, text: `Your goal weight is ${b.idealWeightMax} ${wUnit}. A 500 kcal/day deficit gets you there.`, color: 'text-orange-400' })
+        } else if (b.category === 'normal') {
+          insights.push({ icon: <CheckCircle2 className={`${iconCls} text-primary`} />, text: `Your BMI is in the healthy range. Focus on maintaining with consistent check-ins.`, color: 'text-primary' })
+        } else if (b.category === 'underweight') {
+          insights.push({ icon: <Zap className={`${iconCls} text-blue-400`} />, text: `You're below healthy weight. Consider a calorie surplus to reach ${b.idealWeightMin} ${wUnit}.`, color: 'text-blue-400' })
+        }
+        if (dashboard.tdee) {
+          insights.push({ icon: <Flame className={`${iconCls} text-yellow-400`} />, text: `You burn ~${dashboard.tdee.tdee.toLocaleString()} kcal/day. To lose weight, eat around ${dashboard.tdee.deficit.toLocaleString()} kcal.`, color: 'text-yellow-400' })
+        }
+        if (checkIns.length === 1) {
+          insights.push({ icon: <TrendingUp className={`${iconCls} text-muted-foreground`} />, text: `Log your second check-in to start seeing your progress trend.`, color: 'text-muted-foreground' })
+        }
+        if (insights.length === 0) return null
+        return (
+          <div className="rounded-xl border border-border/50 bg-card p-4 space-y-3">
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Quick insights</p>
+            <div className="space-y-2.5">
+              {insights.map((ins, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  {ins.icon}
+                  <p className={`text-xs leading-relaxed ${ins.color}`}>{ins.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── No data state ── */}
       {!dashboard.bmi && checkIns.length === 0 && (
