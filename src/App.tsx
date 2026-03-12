@@ -254,7 +254,7 @@ function generateAIPlan(dashboard: Dashboard, inputs: SharedInputs, unitSystem: 
   const targetBMI = category === 'underweight' ? 20 : category === 'normal' ? bmi : 24
   const heightStr = inputs.height || '170'
   const heightFt = parseFloat(inputs.heightFt) || 5
-  const heightInch = parseFloat(inputs.heightIn) || 7
+  const heightInch = inputs.heightIn !== '' ? parseFloat(inputs.heightIn) : 7
   const heightM = unitSystem === 'metric'
     ? parseFloat(heightStr) / 100
     : ((heightFt * 12) + heightInch) * 0.0254
