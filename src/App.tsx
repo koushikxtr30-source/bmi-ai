@@ -1743,11 +1743,15 @@ function HomePage({ dashboard, unitSystem, checkIns, profile, onNewCheckin, onOp
 
       {/* ── No data state ── */}
       {!dashboard.bmi && checkIns.length === 0 && (
-        <div className="text-center py-10 space-y-2">
-          <BarChart2 className="w-10 h-10 text-muted-foreground/20 mx-auto" />
-          <p className="text-sm text-muted-foreground">Complete your first check-in to see your metrics here.</p>
+        <div className="text-center py-12 space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto">
+            <BarChart2 className="w-8 h-8 text-primary/60" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm font-semibold">Nothing here yet</p>
+            <p className="text-xs text-muted-foreground max-w-xs mx-auto">Your metrics will appear here after your first check-in.</p>
+          </div>
         </div>
-
       )}
 
       {/* ── View Dashboard link ── */}
@@ -1990,7 +1994,10 @@ function ProgressPage({ checkIns, unitSystem, onClear, onBack }: {
         </CardHeader>
         <CardContent className="px-2 pb-4">
           {!hasData ? (
-            <div className="h-32 flex items-center justify-center text-xs text-muted-foreground">No data yet</div>
+            <div className="h-32 flex flex-col items-center justify-center gap-2">
+              <TrendingUp className="w-6 h-6 text-primary/30" />
+              <p className="text-xs text-muted-foreground">No data yet</p>
+            </div>
           ) : (
             <ResponsiveContainer width="100%" height={140}>
               <LineChart data={chartData} margin={{ top: 4, right: 16, left: -20, bottom: 0 }}>
@@ -2019,12 +2026,17 @@ function ProgressPage({ checkIns, unitSystem, onClear, onBack }: {
         </button>
         <h2 className="text-xl font-bold">Progress</h2>
       </div>
-      <div className="text-center py-16 space-y-3">
-        <TrendingUp className="w-12 h-12 text-muted-foreground/30 mx-auto" />
-        <p className="text-sm font-semibold">No check-ins yet</p>
-        <p className="text-xs text-muted-foreground max-w-xs mx-auto">Complete your first check-in to start tracking your health progress over time.</p>
+      <div className="text-center py-16 space-y-4">
+        <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto">
+          <TrendingUp className="w-8 h-8 text-primary/60" />
+        </div>
+        <div className="space-y-1.5">
+          <p className="text-base font-bold">No progress yet</p>
+          <p className="text-xs text-muted-foreground max-w-xs mx-auto leading-relaxed">Complete your first check-in to start tracking your health journey over time.</p>
+        </div>
         <button onClick={onBack}
-          className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium">
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold shadow-md shadow-primary/20 hover:bg-primary/90 transition-all">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
           Start first check-in
         </button>
       </div>
@@ -2176,9 +2188,14 @@ function DashboardPage({ dashboard, unitSystem, aiPlan, onGeneratePlan, inputs, 
         </button>
       </div>
       {!hasAny && (
-        <div className="text-center py-16 text-muted-foreground">
-          <BarChart2 className="w-10 h-10 mx-auto mb-3 opacity-20" />
-          <p className="text-sm">No data yet. Complete a check-in first.</p>
+        <div className="text-center py-16 space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto">
+            <BarChart2 className="w-8 h-8 text-primary/60" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-base font-bold">No data yet</p>
+            <p className="text-xs text-muted-foreground">Complete a check-in to populate your dashboard.</p>
+          </div>
         </div>
       )}
       {/* ── BMI Hero ── */}
@@ -2374,9 +2391,14 @@ function DashboardPanel({ dashboard, open, onClose, unitSystem, aiPlan, onGenera
 
         <div className="p-5 space-y-4">
           {!hasAny && (
-            <div className="text-center py-16 text-muted-foreground">
-              <BarChart2 className="w-10 h-10 mx-auto mb-3 opacity-20" />
-              <p className="text-sm">Calculate any metric to see your dashboard.</p>
+            <div className="text-center py-16 space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto">
+                <BarChart2 className="w-8 h-8 text-primary/60" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-base font-bold">Nothing to show</p>
+                <p className="text-xs text-muted-foreground">Complete a check-in to see your metrics here.</p>
+              </div>
             </div>
           )}
 
