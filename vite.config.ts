@@ -4,7 +4,11 @@ import { defineConfig } from "vite"
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  base: './',
+  base: '/',
+  server: {
+    host: true,
+    port: 5173,
+  },
   plugins: [
     react(),
     VitePWA({
@@ -80,8 +84,7 @@ export default defineConfig({
 
       // Dev mode — enable SW in development so you can test
       devOptions: {
-        enabled: true,
-        type: 'module'
+        enabled: false,
       }
     })
   ],
