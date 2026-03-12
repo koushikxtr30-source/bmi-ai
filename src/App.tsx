@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { jsPDF } from 'jspdf'
 import './App.css'
 import {
-  Calculator, Info, Moon, Sun, Scale, Ruler, Activity,
+  Info, Moon, Sun, Scale, Ruler, Activity,
   Flame, Zap, Percent, X, ChevronRight, ChevronLeft, ChevronDown,
   TrendingUp, BarChart2, Sparkles, Utensils, Dumbbell,
   Target, CheckCircle2, Clock, Leaf, Apple, Maximize2, Minimize2,
@@ -1780,148 +1780,7 @@ function HomePage({ dashboard, unitSystem, checkIns, profile, onNewCheckin, onOp
   )
 }
 
-// ─── Results Summary (legacy — replaced by HomePage) ──────────────────────
-function ResultsSummary({
-  dashboard, unitSystem, onNewCheckin, onOpenDashboard,
-  onDownloadPDF, aiPlan, onGeneratePlan, dashboardCount, onEditProfile,
-}: {
-  dashboard: Dashboard; unitSystem: UnitSystem
-  onNewCheckin: () => void; onOpenDashboard: () => void
-  onDownloadPDF: () => void
-  aiPlan: AIPlan | null; onGeneratePlan: () => void
-  dashboardCount: number; onEditProfile: () => void
-}) {
-  const wUnit = unitSystem === 'metric' ? 'kg' : 'lbs'
-  const today = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-  const metrics = [
-    { label: 'BMI',       value: dashboard.bmi      ? `${dashboard.bmi.bmi}`                    : '—', sub: dashboard.bmi?.label           ?? 'not calc.',   color: dashboard.bmi?.color },
-    { label: 'BMR',       value: dashboard.bmr      ? `${dashboard.bmr.bmr.toLocaleString()}`   : '—', sub: dashboard.bmr              ? 'kcal' : 'needs age', color: 'hsl(200 80% 55%)' },
-    { label: 'TDEE',      value: dashboard.tdee     ? `${dashboard.tdee.tdee.toLocaleString()}` : '—', sub: dashboard.tdee             ? 'kcal' : 'needs age', color: 'hsl(35 95% 55%)' },
-    { label: 'Body Fat',  value: dashboard.bodyFat  ? `${dashboard.bodyFat.bodyFat}%`            : '—', sub: dashboard.bodyFat?.category ?? 'skipped',        color: dashboard.bodyFat?.color },
-  ]
-  return (
-    <div className="space-y-4 animate-fade-in-up">
-      {/* Check-in complete banner */}
-      <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-green-500/10 border border-green-500/20">
-        <div className="flex items-center gap-3">
-          <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
-          <div>
-            <p className="text-sm font-semibold text-green-400">Last check-in</p>
-            <p className="text-xs text-muted-foreground">{today}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={onEditProfile}
-            className="text-xs text-muted-foreground hover:text-foreground px-2 py-1.5 rounded-lg transition-colors flex-shrink-0 underline underline-offset-2">
-            Edit profile
-          </button>
-          <button onClick={onNewCheckin}
-            className="text-xs text-muted-foreground hover:text-foreground border border-border/50 px-3 py-1.5 rounded-lg transition-colors flex-shrink-0">
-            New Check-in
-          </button>
-        </div>
-      </div>
 
-      {/* 4 metric cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {metrics.map(m => (
-          <div key={m.label} className="rounded-xl border border-border/50 p-3 text-center bg-card">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">{m.label}</p>
-            <p className="text-2xl font-bold" style={{ color: m.color ?? 'inherit' }}>{m.value}</p>
-            <p className="text-xs text-muted-foreground mt-1 capitalize">{m.sub}</p>
-          </div>
-        ))}
-      </div>
-
-      {!dashboard.bmr && dashboard.bmi && (
-        <p className="text-xs text-muted-foreground text-center">
-          BMR & TDEE require age —{' '}
-          <button onClick={onNewCheckin} className="underline hover:text-foreground">add it in a new check-in</button>
-        </p>
-      )}
-
-      {/* Primary CTA — View Dashboard */}
-      <button onClick={onOpenDashboard}
-        className="w-full flex items-center justify-between px-5 py-4 rounded-xl border border-border/60 bg-card hover:border-primary/40 hover:bg-primary/5 transition-all group shadow-sm overflow-hidden relative">
-        {/* Left accent bar */}
-        <span className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-l-xl" />
-        <div className="flex items-center gap-3 ml-2">
-          <BarChart2 className="w-5 h-5 text-primary flex-shrink-0" />
-          <div className="text-left">
-            <p className="text-sm font-semibold">View Full Dashboard</p>
-            <p className="text-xs text-muted-foreground">
-              {dashboardCount} metric{dashboardCount !== 1 ? 's' : ''} · PDF report · AI plan
-            </p>
-
-          </div>
-        </div>
-        <ChevronRight className="w-5 h-5 text-primary/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
-      </button>
-
-    </div>
-  )
-}
-
-// ─── Mini Progress Strip ────────────────────────────────────────────────────
-function MiniProgress({ checkIns, unitSystem, onViewProgress }: {
-  checkIns: CheckIn[]; unitSystem: UnitSystem; onViewProgress: () => void
-}) {
-  if (checkIns.length < 2) return null
-  const last = checkIns[checkIns.length - 1]
-  const prev = checkIns[checkIns.length - 2]
-  const wUnit = unitSystem === 'metric' ? 'kg' : 'lbs'
-
-  const wDelta = last.dashboard.bmi && prev.dashboard.bmi
-    ? (parseFloat(last.inputs.weight) - parseFloat(prev.inputs.weight))
-    : null
-  const bmiDelta = last.dashboard.bmi && prev.dashboard.bmi
-    ? (last.dashboard.bmi.bmi - prev.dashboard.bmi.bmi)
-    : null
-
-  const TrendIcon = ({ delta }: { delta: number | null }) => {
-    if (delta === null) return <Minus className="w-3 h-3 text-muted-foreground" />
-    if (Math.abs(delta) < 0.1) return <Minus className="w-3 h-3 text-muted-foreground" />
-    return delta < 0
-      ? <ArrowDownRight className="w-3 h-3 text-green-400" />
-      : <ArrowUpRight className="w-3 h-3 text-red-400" />
-  }
-
-  return (
-    <button onClick={onViewProgress}
-      className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-border/50 bg-secondary/20 hover:bg-secondary/40 transition-all group">
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
-          <TrendingUp className="w-4 h-4 text-primary" />
-        </div>
-        <div className="text-left">
-          <p className="text-xs font-semibold">Your Progress</p>
-          <p className="text-[10px] text-muted-foreground">{checkIns.length} check-ins recorded</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-4">
-        {wDelta !== null && (
-          <div className="text-right">
-            <p className="text-[10px] text-muted-foreground">Weight</p>
-            <p className="text-xs font-semibold flex items-center gap-0.5 justify-end">
-              <TrendIcon delta={wDelta} />
-              {Math.abs(wDelta).toFixed(1)} {wUnit}
-            </p>
-          </div>
-        )}
-        {bmiDelta !== null && (
-          <div className="text-right">
-            <p className="text-[10px] text-muted-foreground">BMI</p>
-            <p className="text-xs font-semibold flex items-center gap-0.5 justify-end">
-              <TrendIcon delta={bmiDelta} />
-              {Math.abs(bmiDelta).toFixed(1)}
-            </p>
-          </div>
-        )}
-        <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-      </div>
-    </button>
-  )
-}
 
 // ─── Progress Page ──────────────────────────────────────────────────────────
 const CHART_COLORS = {
