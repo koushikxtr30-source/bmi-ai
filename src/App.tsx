@@ -978,19 +978,19 @@ function CheckinWizard({
   return (
     <div className="space-y-5">
       {/* ── Step progress bar ── */}
-      <div className="flex items-center gap-1">
-        {STEPS.map((label, i) => (
-          <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-            <div className={`h-1 w-full rounded-full transition-all duration-300 ${
-              i + 1 < step ? 'bg-green-500' : i + 1 === step ? 'bg-primary' : 'bg-border'
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold text-primary uppercase tracking-widest">Step {step} of {totalSteps}</span>
+          <span className="text-xs text-muted-foreground">{STEPS[step - 1]}</span>
+        </div>
+        <div className="flex gap-1">
+          {STEPS.map((_, i) => (
+            <div key={i} className={`flex-1 h-1 rounded-full transition-all duration-500 ${
+              i + 1 < step ? 'bg-primary' : i + 1 === step ? 'bg-primary/60' : 'bg-border'
             }`} />
-            <span className={`text-[9px] font-medium hidden sm:block transition-colors ${
-              i + 1 === step ? 'text-foreground' : i + 1 < step ? 'text-green-500' : 'text-muted-foreground/50'
-            }`}>{label}</span>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-      <p className="text-xs text-muted-foreground text-right -mt-3">Step {step} of {totalSteps}</p>
 
       {/* ════════════════════════ ONBOARDING STEPS ════════════════════════ */}
       {mode === 'onboarding' && (
@@ -999,8 +999,9 @@ function CheckinWizard({
           {step === 1 && (
             <Card className="border-border/50 shadow-lg">
               <CardHeader className="pb-4">
-                <CardTitle className="text-xl">What should we call you?</CardTitle>
-                <CardDescription>We'll use your name to personalize your experience.</CardDescription>
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4"><svg className="w-6 h-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg></div>
+                <CardTitle className="text-2xl font-bold">What should we call you?</CardTitle>
+                <CardDescription className="text-sm mt-1">We'll use your name to personalize your experience.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
                 <div className="space-y-2">
@@ -1036,8 +1037,9 @@ function CheckinWizard({
           {step === 2 && (
             <Card className="border-border/50 shadow-lg">
               <CardHeader className="pb-4">
-                <CardTitle className="text-xl">How much do you weigh?</CardTitle>
-                <CardDescription>Used to calculate your BMI and health metrics.</CardDescription>
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4"><Scale className="w-6 h-6 text-primary" /></div>
+                <CardTitle className="text-2xl font-bold">How much do you weigh?</CardTitle>
+                <CardDescription className="text-sm mt-1">Used to calculate your BMI and health metrics.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
                 <div className="flex items-center gap-3">
@@ -1075,8 +1077,9 @@ function CheckinWizard({
           {step === 3 && (
             <Card className="border-border/50 shadow-lg">
               <CardHeader className="pb-4">
-                <CardTitle className="text-xl">How tall are you?</CardTitle>
-                <CardDescription>Combined with your weight to calculate BMI.</CardDescription>
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4"><Ruler className="w-6 h-6 text-primary" /></div>
+                <CardTitle className="text-2xl font-bold">How tall are you?</CardTitle>
+                <CardDescription className="text-sm mt-1">Combined with your weight to calculate BMI.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
                 <div className="space-y-2">
@@ -1124,8 +1127,9 @@ function CheckinWizard({
           {step === 4 && (
             <Card className="border-border/50 shadow-lg">
               <CardHeader className="pb-4">
-                <CardTitle className="text-xl">A bit about you</CardTitle>
-                <CardDescription>Used to calculate BMR and TDEE — your daily calorie needs.</CardDescription>
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4"><svg className="w-6 h-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" /></svg></div>
+                <CardTitle className="text-2xl font-bold">A bit about you</CardTitle>
+                <CardDescription className="text-sm mt-1">Used to calculate BMR and TDEE — your daily calorie needs.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
                 <div className="space-y-2">
@@ -1172,8 +1176,9 @@ function CheckinWizard({
           {step === 5 && (
             <Card className="border-border/50 shadow-lg">
               <CardHeader className="pb-4">
-                <CardTitle className="text-xl flex items-center gap-2"><Activity className="w-5 h-5" />How active are you?</CardTitle>
-                <CardDescription>Used to calculate total daily calorie needs (TDEE).</CardDescription>
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4"><Activity className="w-6 h-6 text-primary" /></div>
+                <CardTitle className="text-2xl font-bold">How active are you?</CardTitle>
+                <CardDescription className="text-sm mt-1">Used to calculate total daily calorie needs (TDEE).</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 {ACTIVITY_LEVELS.map(a => (
@@ -1208,8 +1213,9 @@ function CheckinWizard({
           {step === 6 && (
             <Card className="border-border/50 shadow-lg">
               <CardHeader className="pb-4">
-                <CardTitle className="text-xl flex items-center gap-2"><Percent className="w-5 h-5" />Body measurements</CardTitle>
-                <CardDescription>Optional — unlocks Body Fat % calculation. Skip if you don't have a tape measure.</CardDescription>
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4"><Percent className="w-6 h-6 text-primary" /></div>
+                <CardTitle className="text-2xl font-bold">Body measurements</CardTitle>
+                <CardDescription className="text-sm mt-1">Optional — unlocks Body Fat % calculation. Skip if you don't have a tape measure.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-xs text-muted-foreground bg-secondary/40 rounded-lg px-3 py-2.5">
@@ -2094,47 +2100,102 @@ function DashboardPage({ dashboard, unitSystem, aiPlan, onGeneratePlan, inputs, 
           <p className="text-sm">No data yet. Complete a check-in first.</p>
         </div>
       )}
+      {/* ── BMI Hero ── */}
       {dashboard.bmi && (() => { const r = dashboard.bmi!; return (
-        <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: r.color + '55', background: r.color + '11' }}>
+        <div className="card-hero rounded-2xl border p-6 space-y-4" style={{ borderColor: r.color + '40', background: `linear-gradient(145deg, ${r.color}18 0%, ${r.color}08 100%)` }}>
+          {/* Label row */}
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">BMI</span>
-            <Badge variant="outline" style={{ color: r.color, borderColor: r.color }}>{r.label}</Badge>
+            <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Body Mass Index</span>
+            <span className="px-2.5 py-1 rounded-full text-xs font-semibold border" style={{ color: r.color, borderColor: r.color + '60', background: r.color + '18' }}>{r.label}</span>
           </div>
-          <ArcGauge value={r.bmi} min={10} max={40} color={r.color} segments={BMI_SEGMENTS} />
-          <div className="flex justify-between items-end">
-            <div><p className="text-3xl font-bold" style={{ color: r.color }}>{r.bmi}</p><p className="text-xs text-muted-foreground mt-0.5">Body Mass Index</p></div>
-            <div className="text-right text-xs text-muted-foreground"><p>Healthy range</p><p className="font-semibold text-foreground">{r.idealWeightMin}–{r.idealWeightMax} {wUnit}</p></div>
+          {/* Gauge + number side by side on desktop */}
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <div className="w-full sm:w-48 flex-shrink-0">
+              <ArcGauge value={r.bmi} min={10} max={40} color={r.color} segments={BMI_SEGMENTS} />
+            </div>
+            <div className="flex-1 text-center sm:text-left space-y-3">
+              <div>
+                <p className="text-7xl font-black tracking-tight leading-none" style={{ color: r.color }}>{r.bmi}</p>
+                <p className="text-sm text-muted-foreground mt-1">out of 40 max</p>
+              </div>
+              <div className="flex items-center justify-center sm:justify-start gap-6">
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Healthy range</p>
+                  <p className="text-sm font-bold text-foreground mt-0.5">{r.idealWeightMin}–{r.idealWeightMax} {wUnit}</p>
+                </div>
+                <div className="w-px h-8 bg-border/50" />
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Category</p>
+                  <p className="text-sm font-bold mt-0.5" style={{ color: r.color }}>{r.label}</p>
+                </div>
+              </div>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground leading-relaxed border-t border-border/50 pt-3">{r.tip}</p>
+          <p className="text-xs text-muted-foreground leading-relaxed border-t pt-4" style={{ borderColor: r.color + '25' }}>{r.tip}</p>
         </div>
       )})()}
-      {dashboard.bmr && (
-        <div className="rounded-xl border border-border p-4 space-y-3">
-          <div className="flex items-center justify-between"><span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">BMR</span><Flame className="w-4 h-4 text-orange-400" /></div>
-          <p className="text-3xl font-bold text-orange-400">{dashboard.bmr.bmr.toLocaleString()} <span className="text-base font-normal text-muted-foreground">kcal/day</span></p>
-          <p className="text-xs text-muted-foreground">Calories at rest · {dashboard.bmr.formula} formula</p>
-          <div className="bg-secondary/50 rounded-lg p-3 text-xs"><p className="font-medium mb-1">What this means</p><p className="text-muted-foreground">Even lying still all day, your body burns {dashboard.bmr.bmr.toLocaleString()} kcal.</p></div>
+
+      {/* ── Calorie metrics side by side ── */}
+      {(dashboard.bmr || dashboard.tdee) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {dashboard.bmr && (
+            <div className="rounded-xl border border-border bg-card p-5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">BMR</span>
+                <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center"><Flame className="w-4 h-4 text-orange-400" /></div>
+              </div>
+              <p className="text-5xl font-black tracking-tight text-orange-400 leading-none">{dashboard.bmr.bmr.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">kcal/day at rest</p>
+              <p className="text-[11px] text-muted-foreground/70 pt-1 border-t border-border/40">Mifflin-St Jeor formula · minimum calories to survive</p>
+            </div>
+          )}
+          {dashboard.tdee && (
+            <div className="rounded-xl border border-border bg-card p-5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">TDEE</span>
+                <div className="w-8 h-8 rounded-lg bg-yellow-500/10 flex items-center justify-center"><Zap className="w-4 h-4 text-yellow-400" /></div>
+              </div>
+              <p className="text-5xl font-black tracking-tight text-yellow-400 leading-none">{dashboard.tdee.tdee.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">kcal/day · {dashboard.tdee.activityLabel}</p>
+              <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-border/40">
+                <div className="text-center">
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Lose</p>
+                  <p className="text-xs font-bold text-primary mt-0.5">{dashboard.tdee.deficit.toLocaleString()}</p>
+                </div>
+                <div className="text-center border-x border-border/30">
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Maintain</p>
+                  <p className="text-xs font-bold text-blue-400 mt-0.5">{dashboard.tdee.tdee.toLocaleString()}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wide">Gain</p>
+                  <p className="text-xs font-bold text-purple-400 mt-0.5">{dashboard.tdee.surplus.toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
-      {dashboard.tdee && (
-        <div className="rounded-xl border border-border p-4 space-y-3">
-          <div className="flex items-center justify-between"><span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">TDEE</span><Zap className="w-4 h-4 text-yellow-400" /></div>
-          <p className="text-3xl font-bold text-yellow-400">{dashboard.tdee.tdee.toLocaleString()} <span className="text-base font-normal text-muted-foreground">kcal/day</span></p>
-          <p className="text-xs text-muted-foreground">At <span className="text-foreground">{dashboard.tdee.activityLabel}</span> activity level.</p>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-2 text-center"><p className="text-[10px] text-muted-foreground">Weight Loss</p><p className="text-sm font-bold text-green-400">{dashboard.tdee.deficit.toLocaleString()}</p><p className="text-[10px] text-muted-foreground">kcal/day</p></div>
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-2 text-center"><p className="text-[10px] text-muted-foreground">Maintain</p><p className="text-sm font-bold text-blue-400">{dashboard.tdee.tdee.toLocaleString()}</p><p className="text-[10px] text-muted-foreground">kcal/day</p></div>
-            <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-2 text-center"><p className="text-[10px] text-muted-foreground">Weight Gain</p><p className="text-sm font-bold text-purple-400">{dashboard.tdee.surplus.toLocaleString()}</p><p className="text-[10px] text-muted-foreground">kcal/day</p></div>
-          </div>
-        </div>
-      )}
+
+      {/* ── Body Fat ── */}
       {dashboard.bodyFat && (() => { const r = dashboard.bodyFat!; return (
-        <div className="rounded-xl border border-border p-4 space-y-3">
-          <div className="flex items-center justify-between"><span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Body Fat</span><Badge variant="outline" style={{ color: r.color, borderColor: r.color }}>{r.category}</Badge></div>
-          <p className="text-3xl font-bold" style={{ color: r.color }}>{r.bodyFat}%</p>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-secondary/50 rounded-lg p-2 text-center"><p className="text-xs text-muted-foreground">Fat Mass</p><p className="text-sm font-bold">{r.fatMass} {wUnit}</p></div>
-            <div className="bg-secondary/50 rounded-lg p-2 text-center"><p className="text-xs text-muted-foreground">Lean Mass</p><p className="text-sm font-bold">{r.leanMass} {wUnit}</p></div>
+        <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Body Fat</span>
+            <span className="px-2.5 py-1 rounded-full text-xs font-semibold border" style={{ color: r.color, borderColor: r.color + '60', background: r.color + '18' }}>{r.category}</span>
+          </div>
+          <div className="flex items-end gap-3">
+            <p className="text-5xl font-black tracking-tight leading-none" style={{ color: r.color }}>{r.bodyFat}%</p>
+            <p className="text-sm text-muted-foreground mb-1">body fat</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/40">
+            <div className="bg-secondary/40 rounded-lg p-3 text-center">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Fat Mass</p>
+              <p className="text-lg font-bold mt-1">{r.fatMass} <span className="text-xs font-normal text-muted-foreground">{wUnit}</span></p>
+            </div>
+            <div className="bg-secondary/40 rounded-lg p-3 text-center">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Lean Mass</p>
+              <p className="text-lg font-bold mt-1">{r.leanMass} <span className="text-xs font-normal text-muted-foreground">{wUnit}</span></p>
+            </div>
           </div>
         </div>
       )})()}
