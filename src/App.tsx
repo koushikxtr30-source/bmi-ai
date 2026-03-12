@@ -1681,9 +1681,9 @@ function HomePage({ dashboard, unitSystem, checkIns, profile, onNewCheckin, onOp
 
       {/* Trust strip — mobile only */}
       <div className="sm:hidden flex items-center justify-center gap-5 py-3 border-t border-border/30">
-        <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />Local only</span>
-        <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />No account</span>
-        <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />Free</span>
+        <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-1.5 h-1.5 rounded-full bg-primary" />Local only</span>
+        <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-1.5 h-1.5 rounded-full bg-primary" />No account</span>
+        <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-1.5 h-1.5 rounded-full bg-primary" />Free</span>
       </div>
     </div>
   )
@@ -2732,13 +2732,17 @@ export default function App() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col transition-colors duration-300">
       {/* ── Header ── */}
-      <header className="border-b border-border/50 sticky top-0 z-30 bg-background/95 backdrop-blur"
+      <header className="border-b border-border/40 sticky top-0 z-30 bg-background/90 backdrop-blur-xl"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Calculator className="w-5 h-5" />
-            <span className="font-semibold text-sm">mybmi.ai</span>
-            <span className="text-muted-foreground text-sm hidden sm:block">Health Calculators</span>
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
+              <svg className="w-4 h-4 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+              </svg>
+            </div>
+            <span className="font-bold text-sm tracking-tight">mybmi.ai</span>
+            <span className="text-muted-foreground/60 text-xs hidden sm:block font-normal">Health Calculators</span>
           </div>
           <div className="flex items-center gap-2">
             {page !== 'onboarding' && (
@@ -2764,14 +2768,17 @@ export default function App() {
         <div className="max-w-2xl mx-auto px-4 sm:px-6">
           {/* Hero — only shown on onboarding */}
           {page === 'onboarding' && (
-            <div className="text-center mb-6 sm:mb-8">
-              <Badge variant="secondary" className="mb-3">
-                <span className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse" />Free · No account needed
-              </Badge>
-              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-2">mybmi.ai</h1>
-
-              <p className="text-muted-foreground text-sm sm:text-base max-w-md mx-auto">
-                BMI, BMR, TDEE and Body Fat — calculated in minutes.
+            <div className="text-center mb-8 sm:mb-10">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-medium text-primary mb-5">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                Free · No account · Private
+              </div>
+              <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight mb-3">
+                Know your{' '}
+                <span className="text-primary">body</span>
+              </h1>
+              <p className="text-muted-foreground text-sm sm:text-base max-w-sm mx-auto leading-relaxed">
+                BMI, BMR, TDEE and Body Fat — your complete health baseline in minutes.
               </p>
             </div>
           )}
@@ -2887,7 +2894,7 @@ export default function App() {
           {page === 'progress' && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-primary" />}
           <div className="relative">
             <TrendingUp className="w-4 h-4" />
-            {checkIns.length > 0 && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-green-500 border border-background" />}
+            {checkIns.length > 0 && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary border border-background" />}
           </div>
           <span className="text-[10px] font-medium">Progress</span>
         </button>
@@ -2924,8 +2931,8 @@ export default function App() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
           <div className="flex items-center gap-2"><span>© 2025 mybmi.ai</span><span>•</span><span>A bsmawrt.com tool</span></div>
           <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />Local storage only</span>
-            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />Privacy focused</span>
+            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-primary" />Local storage only</span>
+            <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-primary" />Privacy focused</span>
           </div>
         </div>
       </footer>
