@@ -2142,16 +2142,14 @@ function DashboardPage({ dashboard, unitSystem, aiPlan, onGeneratePlan, inputs, 
       {dashboard.bmi && (
         <><Separator />
           {!aiPlan ? (
-            <button onClick={onGeneratePlan} className="w-full flex items-center justify-between px-5 py-4 rounded-xl border border-primary/40 bg-primary/8 hover:bg-primary/15 hover:border-primary/70 transition-all group shadow-md shadow-primary/15 hover:shadow-primary/30 hover:shadow-lg relative overflow-hidden">
-              <span className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                style={{ background: 'radial-gradient(ellipse at 30% 50%, hsl(var(--primary)/0.12) 0%, transparent 70%)' }} />
+            <button onClick={onGeneratePlan} className="w-full flex items-center justify-between px-5 py-4 rounded-xl border border-primary/60 bg-primary/12 transition-all group relative overflow-hidden ai-plan-btn">
               <div className="flex items-center gap-3 relative">
-                <div className="w-9 h-9 rounded-lg bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
-                  <Sparkles className="w-5 h-5 text-primary group-hover:scale-110 transition-transform duration-200" />
+                <div className="w-9 h-9 rounded-lg bg-primary/25 flex items-center justify-center transition-colors">
+                  <Sparkles className="w-5 h-5 text-primary" />
                 </div>
-                <div className="text-left"><p className="text-sm font-semibold text-foreground">Get Your AI Health Plan</p><p className="text-xs text-muted-foreground">Diet · Exercise · Goal timeline</p></div>
+                <div className="text-left"><p className="text-sm font-semibold text-primary">Get Your AI Health Plan</p><p className="text-xs text-muted-foreground">Diet · Exercise · Goal timeline</p></div>
               </div>
-              <ChevronRight className="w-5 h-5 text-primary/60 group-hover:text-primary group-hover:translate-x-0.5 transition-all relative" />
+              <ChevronRight className="w-5 h-5 text-primary/70 transition-all relative" />
             </button>
           ) : <AIPlanSection plan={aiPlan} unitSystem={unitSystem} />}
         </>
@@ -2372,17 +2370,17 @@ function DashboardPanel({ dashboard, open, onClose, unitSystem, aiPlan, onGenera
               <Separator />
               {!aiPlan ? (
                 <button onClick={onGeneratePlan}
-                  className="w-full flex items-center justify-between px-5 py-4 rounded-xl border-2 border-dashed border-primary/30 hover:border-primary/60 hover:bg-primary/5 transition-all group">
+                  className="w-full flex items-center justify-between px-5 py-4 rounded-xl border border-primary/60 bg-primary/12 transition-all group overflow-hidden relative ai-plan-btn">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                    <div className="w-9 h-9 rounded-lg bg-primary/25 flex items-center justify-center transition-colors">
                       <Sparkles className="w-5 h-5 text-primary" />
                     </div>
                     <div className="text-left">
-                      <p className="text-sm font-semibold">Get Your AI Health Plan</p>
+                      <p className="text-sm font-semibold text-primary">Get Your AI Health Plan</p>
                       <p className="text-xs text-muted-foreground">Diet · Exercise · Goal timeline</p>
                     </div>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <ChevronRight className="w-5 h-5 text-primary/70 transition-all" />
                 </button>
               ) : (
                 <AIPlanSection plan={aiPlan} unitSystem={unitSystem} />
