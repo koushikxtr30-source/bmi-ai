@@ -2780,11 +2780,12 @@ export default function App() {
     if (!skipBodyFat) {
       const nV = parseFloat(neckV), wV2 = parseFloat(waistV), hV = parseFloat(hipV)
       if (nV > 0 && wV2 > 0 && (inp.sex === 'male' || hV > 0)) {
-        const fc = unit === 'imperial' ? 2.54 : 1
-        const nCm = nV*fc, wCm = wV2*fc, hCm2 = hV*fc, htCm = hm*100
+        // US Navy formula requires inches — always convert to inches regardless of input unit
+        const toIn = (val: number) => unit === 'metric' ? val / 2.54 : val
+        const nIn = toIn(nV), wIn = toIn(wV2), hIn = toIn(hV), htIn = hm * 100 / 2.54
         let bf = inp.sex === 'male'
-          ? 86.01*Math.log10(wCm-nCm) - 70.041*Math.log10(htCm) + 36.76
-          : 163.205*Math.log10(wCm+hCm2-nCm) - 97.684*Math.log10(htCm) - 78.387
+          ? 86.01*Math.log10(wIn-nIn) - 70.041*Math.log10(htIn) + 36.76
+          : 163.205*Math.log10(wIn+hIn-nIn) - 97.684*Math.log10(htIn) - 78.387
         bf = Math.max(0, Math.round(bf*10)/10)
         const fatMass = Math.round(wkg*(bf/100)*f*10)/10
         const leanMass = Math.round((w - fatMass)*10)/10
