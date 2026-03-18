@@ -5,6 +5,7 @@ import {
   type User
 } from 'firebase/auth'
 import { auth, googleProvider, appleProvider } from '@/lib/firebase'
+import { upsertProfile, saveCheckInToCloud, loadCheckInsFromCloud, deleteCheckInsFromCloud, migrateLocalToCloud } from '@/lib/db'
 import { jsPDF } from 'jspdf'
 import './App.css'
 import {
@@ -2733,8 +2734,37 @@ export default function App() {
   useEffect(() => { document.documentElement.className = isDark ? 'dark' : 'light' }, [isDark])
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u)
+      if (u) {
+        // Load check-ins from cloud
+        const cloudCheckIns = await loadCheckInsFromCloud(u.uid)
+        if (cloudCheckIns.length > 0) {
+          // Cloud has data — use it as source of truth
+          localStorage.setItem('mybmi_checkins', JSON.stringify(cloudCheckIns))
+          setCheckIns(cloudCheckIns)
+        } else {
+          // No cloud data — migrate any existing localStorage data up
+          const local = loadCheckIns()
+          if (local.length > 0) {
+            await migrateLocalToCloud(u.uid, local)
+          }
+        }
+        // Sync profile to Supabase
+        const prof = loadProfile()
+        if (prof) {
+          await upsertProfile(u.uid, {
+            email: u.email,
+            name: prof.name,
+            unit_system: prof.unitSystem,
+            height: prof.height,
+            height_ft: prof.heightFt,
+            height_in: prof.heightIn,
+            age: prof.age,
+            sex: prof.sex,
+          })
+        }
+      }
       setAuthLoading(false)
     })
     return unsub
@@ -2845,6 +2875,19 @@ export default function App() {
       }
       saveCheckIn(newCheckIn)
       setCheckIns(loadCheckIns())
+      if (user) saveCheckInToCloud(user.uid, newCheckIn)
+    }
+    if (user) {
+      upsertProfile(user.uid, {
+        email: user.email,
+        name: newProfile.name,
+        unit_system: newProfile.unitSystem,
+        height: newProfile.height,
+        height_ft: newProfile.heightFt,
+        height_in: newProfile.heightIn,
+        age: newProfile.age,
+        sex: newProfile.sex,
+      })
     }
     if (isEditingProfile) {
       showToast('Profile updated ✓')
@@ -2877,6 +2920,7 @@ export default function App() {
       }
       saveCheckIn(newCheckIn)
       setCheckIns(loadCheckIns())
+      if (user) saveCheckInToCloud(user.uid, newCheckIn)
     }
 
     showToast('Check-in saved!')
@@ -3020,6 +3064,7 @@ export default function App() {
               onClear={() => {
                 deleteCheckIns()
                 deleteProfile()
+                if (user) deleteCheckInsFromCloud(user.uid)
                 setCheckIns([])
                 setDashboard({ bmi: null, bmr: null, tdee: null, bodyFat: null })
                 setAiPlan(null)
