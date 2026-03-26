@@ -5,7 +5,7 @@ import {
   type User
 } from 'firebase/auth'
 import { auth, googleProvider, appleProvider } from '@/lib/firebase'
-import { upsertProfile, saveCheckInToCloud, loadCheckInsFromCloud, deleteCheckInsFromCloud, migrateLocalToCloud } from '@/lib/db'
+import { upsertProfile, saveCheckInToCloud, loadCheckInsFromCloud, loadProfileFromCloud, deleteCheckInsFromCloud, migrateLocalToCloud } from '@/lib/db'
 import { jsPDF } from 'jspdf'
 import './App.css'
 import {
@@ -2554,11 +2554,11 @@ function AccountPage({ profile, onEditProfile, user, onSignOut, onSignIn }: {
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 // ─── Auth Page ──────────────────────────────────────────────────────────────
-function AuthPage({ onSuccess, onSkip }: { onSuccess: () => void; onSkip?: () => void }) {
+function AuthPage({ onSuccess, onSkip, isNewUser }: { onSuccess: () => void; onSkip?: () => void; isNewUser?: boolean }) {
   const [mode, setMode] = useState<'choose' | 'email'>('choose')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [isSignUp, setIsSignUp] = useState(false)
+  const [isSignUp, setIsSignUp] = useState(isNewUser ?? false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -2607,11 +2607,15 @@ function AuthPage({ onSuccess, onSkip }: { onSuccess: () => void; onSkip?: () =>
               <rect x="17" y="3" width="4" height="18" rx="1" fill="currentColor"/>
             </svg>
           </div>
-          <h1 className="text-2xl font-bold">Save your progress</h1>
+          <h1 className="text-2xl font-bold">
+            {isNewUser ? 'Save your progress' : 'Welcome back'}
+          </h1>
           <p className="text-muted-foreground text-sm">
             {mode === 'email'
-              ? (isSignUp ? 'Create an account to sync your data' : 'Sign in to access your data')
-              : 'Sign in to unlock Progress tracking and AI Health Plans across all your devices'}
+              ? (isSignUp ? 'Create an account to sync your data across devices' : 'Sign in to access your data')
+              : isNewUser
+                ? 'Sign in to unlock Progress tracking and AI Health Plans across all your devices'
+                : 'Sign in to load your data and continue tracking'}
           </p>
         </div>
 
@@ -2740,28 +2744,35 @@ export default function App() {
         // Load check-ins from cloud
         const cloudCheckIns = await loadCheckInsFromCloud(u.uid)
         if (cloudCheckIns.length > 0) {
-          // Cloud has data — use it as source of truth
+          // Cloud has data — use as source of truth
           localStorage.setItem('mybmi_checkins', JSON.stringify(cloudCheckIns))
           setCheckIns(cloudCheckIns)
         } else {
           // No cloud data — migrate any existing localStorage data up
           const local = loadCheckIns()
-          if (local.length > 0) {
-            await migrateLocalToCloud(u.uid, local)
-          }
+          if (local.length > 0) await migrateLocalToCloud(u.uid, local)
         }
-        // Sync profile to Supabase
-        const prof = loadProfile()
-        if (prof) {
+
+        // Restore profile from cloud if not in localStorage (returning user, new device)
+        const localProf = loadProfile()
+        if (!localProf) {
+          const cloudProf = await loadProfileFromCloud(u.uid)
+          if (cloudProf) {
+            saveProfile(cloudProf as any)
+            setProfile(cloudProf as any)
+            setPage('home')
+          }
+        } else {
+          // Profile exists locally — sync it up to cloud
           await upsertProfile(u.uid, {
             email: u.email,
-            name: prof.name,
-            unit_system: prof.unitSystem,
-            height: prof.height,
-            height_ft: prof.heightFt,
-            height_in: prof.heightIn,
-            age: prof.age,
-            sex: prof.sex,
+            name: localProf.name,
+            unit_system: localProf.unitSystem,
+            height: localProf.height,
+            height_ft: localProf.heightFt,
+            height_in: localProf.heightIn,
+            age: localProf.age,
+            sex: localProf.sex,
           })
         }
       }
@@ -2996,8 +3007,9 @@ export default function App() {
   if (page === 'auth') return (
     <div className="min-h-screen bg-background text-foreground">
       <AuthPage
-        onSuccess={() => { showToast('Welcome! 🎉'); setPage('home') }}
+        onSuccess={() => { showToast('Welcome back! 🎉'); setPage('home') }}
         onSkip={() => setPage('home')}
+        isNewUser={!profile}
       />
     </div>
   )
@@ -3030,6 +3042,22 @@ export default function App() {
                 </button>
               </>
             )}
+            {page !== 'onboarding' && (
+              <button onClick={() => setPage('account')}
+                className={`hidden sm:flex items-center gap-1.5 px-2 h-9 rounded-md text-sm border transition-colors font-medium ${page === 'account' ? 'bg-secondary border-border text-foreground' : 'border-border/60 text-muted-foreground hover:text-foreground hover:bg-secondary'}`}
+                aria-label="Account">
+                {user ? (
+                  <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-[10px] font-bold text-primary-foreground">
+                    {user.email?.charAt(0).toUpperCase()}
+                  </div>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                  </svg>
+                )}
+                <span className="hidden md:block">{user ? 'Account' : 'Sign in'}</span>
+              </button>
+            )}
             <button onClick={() => setIsDark(!isDark)} className="p-2 rounded-md hover:bg-secondary transition-colors" aria-label="Toggle theme">
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
@@ -3053,6 +3081,10 @@ export default function App() {
               <p className="text-muted-foreground text-sm sm:text-base max-w-sm mx-auto leading-relaxed">
                 BMI, BMR, TDEE and Body Fat — your complete health baseline in minutes.
               </p>
+              <button onClick={() => setPage('auth')}
+                className="mt-4 text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-4">
+                Already have an account? Sign in
+              </button>
             </div>
           )}
 
@@ -3132,7 +3164,16 @@ export default function App() {
               profile={profile}
               onEditProfile={handleEditProfile}
               user={user}
-              onSignOut={() => { signOut(auth); setPage('home') }}
+              onSignOut={() => {
+                signOut(auth)
+                deleteCheckIns()
+                deleteProfile()
+                setCheckIns([])
+                setProfile(null)
+                setDashboard({ bmi: null, bmr: null, tdee: null, bodyFat: null })
+                setAiPlan(null)
+                setPage('onboarding')
+              }}
               onSignIn={() => setPage('auth')}
             />
           ) : (
