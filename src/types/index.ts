@@ -103,6 +103,18 @@ export interface AIPlan {
   generatedBy: 'rule-based' | 'ai'
 }
 
+// ─── User Profile ───────────────────────────────────────────────────────────
+export interface UserProfile {
+  name: string
+  height: string
+  heightFt: string
+  heightIn: string
+  age: string
+  sex: Sex
+  unitSystem: UnitSystem
+  createdAt: string
+}
+
 // ─── Progress / CheckIn Types ─────────────────────────────────────────────────
 export interface CheckIn {
   id: string

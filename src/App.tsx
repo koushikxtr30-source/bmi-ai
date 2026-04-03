@@ -6,6 +6,9 @@ import {
 } from 'firebase/auth'
 import { auth, googleProvider, appleProvider } from '@/lib/firebase'
 import { upsertProfile, saveCheckInToCloud, loadCheckInsFromCloud, loadProfileFromCloud, deleteCheckInsFromCloud, migrateLocalToCloud } from '@/lib/db'
+import { loadCheckIns, saveCheckIn, deleteCheckIns, loadProfile, saveProfile, deleteProfile } from '@/lib/storage'
+import type { UserProfile } from '@/types'
+import { calculateDashboard } from '@/lib/calculations'
 import { jsPDF } from 'jspdf'
 import './App.css'
 import {
@@ -86,55 +89,8 @@ interface CheckIn {
   dashboard: Dashboard
 }
 
-const STORAGE_KEY = 'mybmi_checkins'
-
-function loadCheckIns(): CheckIn[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch { return [] }
-}
-
-function saveCheckIn(c: CheckIn): void {
-  try {
-    const existing = loadCheckIns()
-    existing.push(c)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(existing))
-  } catch {}
-}
-
-function deleteCheckIns(): void {
-  try { localStorage.removeItem(STORAGE_KEY) } catch {}
-}
-
-// ─── User Profile & Storage ───────────────────────────────────────────────────
-interface UserProfile {
-  name: string
-  height: string
-  heightFt: string
-  heightIn: string
-  age: string
-  sex: Sex
-  unitSystem: UnitSystem
-  createdAt: string
-}
-
-const PROFILE_KEY = 'mybmi_profile'
-
-function loadProfile(): UserProfile | null {
-  try {
-    const raw = localStorage.getItem(PROFILE_KEY)
-    return raw ? JSON.parse(raw) : null
-  } catch { return null }
-}
-
-function saveProfile(p: UserProfile): void {
-  try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)) } catch {}
-}
-
-function deleteProfile(): void {
-  try { localStorage.removeItem(PROFILE_KEY) } catch {}
-}
+// storage helpers imported from @/lib/storage
+// UserProfile type imported from @/types
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const ACTIVITY_LEVELS = [
@@ -2438,9 +2394,30 @@ function AccountPage({ profile, onEditProfile, user, onSignOut, onSignIn }: {
     : '—'
 
   const lockedFeatures = [
-    { icon: '🍎', title: 'Apple Health Sync', desc: 'Auto-import weight & workouts', tag: 'Coming soon' },
-    { icon: '📊', title: 'Fitbit Integration', desc: 'Sync steps, heart rate & sleep', tag: 'Coming soon' },
-    { icon: '⭐', title: 'Go Pro', desc: 'AI insights, unlimited history & no ads', tag: 'Upgrade', highlight: true },
+    {
+      icon: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+        </svg>
+      ),
+      title: 'Apple Health Sync', desc: 'Auto-import weight & workouts', tag: 'Coming soon'
+    },
+    {
+      icon: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+        </svg>
+      ),
+      title: 'Fitbit Integration', desc: 'Sync steps, heart rate & sleep', tag: 'Coming soon'
+    },
+    {
+      icon: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
+        </svg>
+      ),
+      title: 'Go Pro', desc: 'AI insights, unlimited history & no ads', tag: 'Upgrade', highlight: true
+    },
   ]
 
   return (
@@ -2525,7 +2502,7 @@ function AccountPage({ profile, onEditProfile, user, onSignOut, onSignIn }: {
               ? 'border-primary/30 bg-primary/5'
               : 'border-border/50 bg-card'
           } opacity-70`}>
-            <span className="text-2xl flex-shrink-0">{f.icon}</span>
+            <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center flex-shrink-0 text-muted-foreground">{f.icon}</div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold">{f.title}</p>
               <p className="text-xs text-muted-foreground">{f.desc}</p>
@@ -2727,6 +2704,14 @@ export default function App() {
   const [page, setPage] = useState<'onboarding' | 'results' | 'auth' | 'home' | 'checkin' | 'progress' | 'dashboard' | 'account'>(
     () => loadProfile() ? 'home' : 'onboarding'
   )
+  const [authIntent, setAuthIntent] = useState<'signin' | 'signup'>('signup')
+
+  // Helper to navigate to auth with explicit intent
+  const goToAuth = (intent: 'signin' | 'signup' = 'signup') => {
+    setAuthIntent(intent)
+    setPage('auth')
+  }
+
   const [checkIns, setCheckIns] = useState<CheckIn[]>(() => loadCheckIns())
 
   // Derive unitSystem from profile (or default imperial for onboarding)
@@ -2750,7 +2735,10 @@ export default function App() {
         } else {
           // No cloud data — migrate any existing localStorage data up
           const local = loadCheckIns()
-          if (local.length > 0) await migrateLocalToCloud(u.uid, local)
+          if (local.length > 0) {
+            await migrateLocalToCloud(u.uid, local)
+            setCheckIns(local)
+          }
         }
 
         // Restore profile from cloud if not in localStorage (returning user, new device)
@@ -2781,75 +2769,16 @@ export default function App() {
     return unsub
   }, [])
 
-  // ─ Calculate all 4 metrics silently (no dashboard open, no individual state calls) ─
+  // ─ Calculate all 4 metrics silently ─
   const calcAllSilently = useCallback((
     inp: SharedInputs, unit: UnitSystem, activity: ActivityLevel,
     neckV: string, waistV: string, hipV: string, skipBodyFat: boolean
   ): Dashboard | null => {
-    const hm = unit === 'metric'
-      ? parseFloat(inp.height) / 100
-      : ((parseFloat(inp.heightFt)||0)*12 + (parseFloat(inp.heightIn)||0)) * 0.0254
-    const w = parseFloat(inp.weight)
-    const wkg = unit === 'metric' ? w : w * 0.453592
-    if (!hm || !wkg || hm <= 0 || wkg <= 0) return null
-
-    const f = unit === 'metric' ? 1 : 2.20462
-    const bmiVal = Math.round((wkg / (hm * hm)) * 10) / 10
-    const idealMin = Math.round(18.5 * hm * hm * f * 10) / 10
-    const idealMax = Math.round(24.9 * hm * hm * f * 10) / 10
-    let bmiCat: BMICategory, bmiLabel: string, bmiColor: string, bmiTip: string
-    if (bmiVal < 18.5)      { bmiCat='underweight'; bmiLabel='Underweight';   bmiColor='hsl(200 80% 55%)'; bmiTip='Focus on nutrient-dense foods and consult a healthcare provider.' }
-    else if (bmiVal < 25)  { bmiCat='normal';      bmiLabel='Normal Weight'; bmiColor='hsl(142 76% 45%)'; bmiTip='Great! Maintain your healthy habits with regular exercise and balanced nutrition.' }
-    else if (bmiVal < 30)  { bmiCat='overweight';  bmiLabel='Overweight';    bmiColor='hsl(35 95% 55%)';  bmiTip='Consider a balanced diet and increased physical activity.' }
-    else                   { bmiCat='obese';        bmiLabel='Obese';         bmiColor='hsl(0 84% 60%)';   bmiTip='We recommend seeking professional medical guidance for a personalized plan.' }
-    const bmiResult: BMIResult = { bmi: bmiVal, category: bmiCat, label: bmiLabel, color: bmiColor, tip: bmiTip, idealWeightMin: idealMin, idealWeightMax: idealMax }
-
-    const age = parseInt(inp.age)
-    let bmrResult: BMRResult | null = null
-    let tdeeResult: TDEEResult | null = null
-    if (age > 0) {
-      const hcm = hm * 100
-      const bmr = inp.sex === 'male' ? Math.round(10*wkg+6.25*hcm-5*age+5) : Math.round(10*wkg+6.25*hcm-5*age-161)
-      bmrResult = { bmr, formula: 'Mifflin-St Jeor' }
-      const act = ACTIVITY_LEVELS.find(a => a.value === activity)!
-      const tdee = Math.round(bmr * act.multiplier)
-      tdeeResult = { tdee, bmr, activityLabel: act.label, deficit: tdee - 500, surplus: tdee + 300 }
+    const result = calculateDashboard(inp, unit, activity, neckV, waistV, hipV, skipBodyFat)
+    if (result) {
+      setDashboard(result)
+      setAiPlan(null)
     }
-
-    let bodyFatResult: BodyFatResult | null = null
-
-    if (!skipBodyFat) {
-      const nV = parseFloat(neckV), wV2 = parseFloat(waistV), hV = parseFloat(hipV)
-      if (nV > 0 && wV2 > 0 && (inp.sex === 'male' || hV > 0)) {
-        // US Navy formula requires inches — always convert to inches regardless of input unit
-        const toIn = (val: number) => unit === 'metric' ? val / 2.54 : val
-        const nIn = toIn(nV), wIn = toIn(wV2), hIn = toIn(hV), htIn = hm * 100 / 2.54
-        let bf = inp.sex === 'male'
-          ? 86.01*Math.log10(wIn-nIn) - 70.041*Math.log10(htIn) + 36.76
-          : 163.205*Math.log10(wIn+hIn-nIn) - 97.684*Math.log10(htIn) - 78.387
-        bf = Math.max(0, Math.round(bf*10)/10)
-        const fatMass = Math.round(wkg*(bf/100)*f*10)/10
-        const leanMass = Math.round((w - fatMass)*10)/10
-        let bfCat: string, bfColor: string
-        if (inp.sex === 'male') {
-          if (bf<6) { bfCat='Essential'; bfColor='hsl(200 80% 55%)' }
-          else if (bf<14) { bfCat='Athletic'; bfColor='hsl(142 76% 45%)' }
-          else if (bf<18) { bfCat='Fitness';  bfColor='hsl(142 76% 45%)' }
-          else if (bf<25) { bfCat='Average';  bfColor='hsl(35 95% 55%)' }
-          else            { bfCat='Obese';    bfColor='hsl(0 84% 60%)' }
-        } else {
-          if (bf<14) { bfCat='Essential'; bfColor='hsl(200 80% 55%)' }
-          else if (bf<21) { bfCat='Athletic'; bfColor='hsl(142 76% 45%)' }
-          else if (bf<25) { bfCat='Fitness';  bfColor='hsl(142 76% 45%)' }
-          else if (bf<32) { bfCat='Average';  bfColor='hsl(35 95% 55%)' }
-          else            { bfCat='Obese';    bfColor='hsl(0 84% 60%)' }
-        }
-        bodyFatResult = { bodyFat: bf, fatMass, leanMass, category: bfCat, color: bfColor }
-      }
-    }
-    const result: Dashboard = { bmi: bmiResult, bmr: bmrResult, tdee: tdeeResult, bodyFat: bodyFatResult }
-    setDashboard(result)
-    setAiPlan(null)
     return result
   }, [])
 
@@ -2910,7 +2839,12 @@ export default function App() {
 
   // Check-in complete: merge weight into profile constants and recalculate
   const handleCheckinComplete = (skipBodyFat: boolean) => {
-    if (!profile) return
+    if (!profile) {
+      // Profile missing — send back to onboarding to set up profile
+      showToast('Please set up your profile first')
+      setPage('onboarding')
+      return
+    }
     const mergedInputs: SharedInputs = {
       weight: inputs.weight,
       height: profile.height,
@@ -2931,7 +2865,19 @@ export default function App() {
       }
       saveCheckIn(newCheckIn)
       setCheckIns(loadCheckIns())
-      if (user) saveCheckInToCloud(user.uid, newCheckIn)
+      if (user) {
+        // Ensure profile exists in Supabase before saving check-in
+        upsertProfile(user.uid, {
+          email: user.email,
+          name: profile.name,
+          unit_system: profile.unitSystem,
+          height: profile.height,
+          height_ft: profile.heightFt,
+          height_in: profile.heightIn,
+          age: profile.age,
+          sex: profile.sex,
+        }).then(() => saveCheckInToCloud(user.uid, newCheckIn))
+      }
     }
 
     showToast('Check-in saved!')
@@ -2982,7 +2928,7 @@ export default function App() {
   }
 
   const handleGeneratePlan = () => {
-    if (!user) { setPage('auth'); return }
+    if (!user) { goToAuth('signup'); return }
     const plan = generateAIPlan(dashboard, inputs, unitSystem, activityLevel)
     setAiPlan(plan)
   }
@@ -3007,9 +2953,10 @@ export default function App() {
   if (page === 'auth') return (
     <div className="min-h-screen bg-background text-foreground">
       <AuthPage
-        onSuccess={() => { showToast('Welcome back! 🎉'); setPage('home') }}
+        key={authIntent}
+        onSuccess={() => { showToast('Welcome! 🎉'); setPage('home') }}
         onSkip={() => setPage('home')}
-        isNewUser={!profile}
+        isNewUser={authIntent === 'signup'}
       />
     </div>
   )
@@ -3032,7 +2979,7 @@ export default function App() {
           <div className="flex items-center gap-2">
             {page !== 'onboarding' && (
               <>
-                <button onClick={() => user ? setPage('progress') : setPage('auth')}
+                <button onClick={() => user ? setPage('progress') : goToAuth('signin')}
                   className={`hidden sm:flex items-center gap-1.5 px-3 h-9 rounded-md text-sm border transition-colors font-medium ${page === 'progress' ? 'bg-secondary border-border text-foreground' : 'border-border/60 text-muted-foreground hover:text-foreground hover:bg-secondary'}`}>
                   <TrendingUp className="w-4 h-4" />Progress
                 </button>
@@ -3043,7 +2990,7 @@ export default function App() {
               </>
             )}
             {page !== 'onboarding' && (
-              <button onClick={() => setPage('account')}
+              <button onClick={() => user ? setPage('account') : goToAuth('signin')}
                 className={`hidden sm:flex items-center gap-1.5 px-2 h-9 rounded-md text-sm border transition-colors font-medium ${page === 'account' ? 'bg-secondary border-border text-foreground' : 'border-border/60 text-muted-foreground hover:text-foreground hover:bg-secondary'}`}
                 aria-label="Account">
                 {user ? (
@@ -3081,10 +3028,6 @@ export default function App() {
               <p className="text-muted-foreground text-sm sm:text-base max-w-sm mx-auto leading-relaxed">
                 BMI, BMR, TDEE and Body Fat — your complete health baseline in minutes.
               </p>
-              <button onClick={() => setPage('auth')}
-                className="mt-4 text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-4">
-                Already have an account? Sign in
-              </button>
             </div>
           )}
 
@@ -3125,7 +3068,7 @@ export default function App() {
               unitSystem={activeUnit}
               name={profile?.name || onboardingName || ''}
               onContinue={() => {
-                if (!user) { setPage('auth') }
+                if (!user) { goToAuth('signup') }
                 else { showToast('Welcome! 🎉'); setPage('home') }
               }}
             />
@@ -3174,10 +3117,11 @@ export default function App() {
                 setAiPlan(null)
                 setPage('onboarding')
               }}
-              onSignIn={() => setPage('auth')}
+              onSignIn={() => goToAuth('signin')}
             />
           ) : (
             // Onboarding — first-time setup or edit profile
+            <>
             <CheckinWizard
               mode="onboarding"
               step={wizardStep}
@@ -3197,6 +3141,25 @@ export default function App() {
               onComplete={handleOnboardingComplete}
               onCancel={profileBackup ? handleEditProfileCancel : undefined}
             />
+
+            {/* Sign in CTA — shown below wizard during onboarding only */}
+            {page === 'onboarding' && !profileBackup && (
+              <div className="mt-4 flex items-center justify-center gap-3">
+                <div className="flex-1 h-px bg-border/50" />
+                <span className="text-xs text-muted-foreground">or</span>
+                <div className="flex-1 h-px bg-border/50" />
+              </div>
+            )}
+            {page === 'onboarding' && !profileBackup && (
+              <button onClick={() => goToAuth('signin')}
+                className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-border/60 bg-card hover:bg-secondary hover:border-border transition-all text-sm font-medium text-muted-foreground hover:text-foreground">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                </svg>
+                Already have an account? Sign in
+              </button>
+            )}
+            </>
           )}
 
         </div>
@@ -3211,7 +3174,7 @@ export default function App() {
           <span className="text-[10px] font-medium">Home</span>
         </button>
         {/* Progress */}
-        <button onClick={() => user ? setPage('progress') : setPage('auth')} className={`bottom-tab-item relative ${page === 'progress' ? 'text-primary' : 'text-muted-foreground'}`} aria-label="Progress">
+        <button onClick={() => user ? setPage('progress') : goToAuth('signin')} className={`bottom-tab-item relative ${page === 'progress' ? 'text-primary' : 'text-muted-foreground'}`} aria-label="Progress">
           {page === 'progress' && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-primary" />}
           <div className="relative">
             <TrendingUp className="w-4 h-4" />
