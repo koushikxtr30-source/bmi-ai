@@ -931,9 +931,11 @@ function HomePage({ dashboard, unitSystem, checkIns, profile, onNewCheckin, onOp
       {/* ── Quick insights ── */}
       {dashboard.bmi && (() => {
         const b = dashboard.bmi!
-        type Insight = { icon: React.ReactNode; text: string; color: string }
+        type Insight = { icon: React.ReactNode; text: string; color: string; tag?: string }
         const insights: Insight[] = []
         const iconCls = 'w-4 h-4 flex-shrink-0 mt-0.5'
+
+        // ─ BMI insight
         if (b.category === 'obese' || b.category === 'overweight') {
           insights.push({ icon: <Target className={`${iconCls} text-orange-400`} />, text: `Your goal weight is ${b.idealWeightMax} ${wUnit}. A 500 kcal/day deficit gets you there.`, color: 'text-orange-400' })
         } else if (b.category === 'normal') {
@@ -941,16 +943,91 @@ function HomePage({ dashboard, unitSystem, checkIns, profile, onNewCheckin, onOp
         } else if (b.category === 'underweight') {
           insights.push({ icon: <Zap className={`${iconCls} text-blue-400`} />, text: `You're below healthy weight. Consider a calorie surplus to reach ${b.idealWeightMin} ${wUnit}.`, color: 'text-blue-400' })
         }
+
+        // ─ TDEE / calorie insight
         if (dashboard.tdee) {
-          insights.push({ icon: <Flame className={`${iconCls} text-yellow-400`} />, text: `You burn ~${dashboard.tdee.tdee.toLocaleString()} kcal/day. To lose weight, eat around ${dashboard.tdee.deficit.toLocaleString()} kcal.`, color: 'text-yellow-400' })
+          const t = dashboard.tdee
+          if (b.category === 'obese' || b.category === 'overweight') {
+            insights.push({ icon: <Flame className={`${iconCls} text-yellow-400`} />, text: `You burn ~${t.tdee.toLocaleString()} kcal/day. Eating ${t.deficit.toLocaleString()} kcal/day creates a 500 kcal deficit — the sweet spot for fat loss.`, color: 'text-yellow-400' })
+          } else if (b.category === 'underweight') {
+            insights.push({ icon: <Flame className={`${iconCls} text-yellow-400`} />, text: `You burn ~${t.tdee.toLocaleString()} kcal/day. Eating ${t.surplus.toLocaleString()} kcal/day gives you a 300 kcal surplus to gain healthy weight.`, color: 'text-yellow-400' })
+          } else {
+            insights.push({ icon: <Flame className={`${iconCls} text-yellow-400`} />, text: `You burn ~${t.tdee.toLocaleString()} kcal/day. Staying within 100–200 kcal of this helps you maintain your weight.`, color: 'text-yellow-400' })
+          }
         }
+
+        // ─ Body fat insight
+        if (dashboard.bodyFat) {
+          const bf = dashboard.bodyFat
+          if (bf.category === 'Obese') {
+            insights.push({ icon: <Activity className={`${iconCls} text-red-400`} />, text: `Your body fat is ${bf.bodyFat}% (${bf.category}). Combining cardio with strength training accelerates fat loss while preserving muscle.`, color: 'text-red-400' })
+          } else if (bf.category === 'Average') {
+            insights.push({ icon: <Activity className={`${iconCls} text-orange-400`} />, text: `Your body fat is ${bf.bodyFat}% (${bf.category}). You have ${bf.leanMass} ${wUnit} of lean mass — protect it with adequate protein intake.`, color: 'text-orange-400' })
+          } else if (bf.category === 'Athletic' || bf.category === 'Fitness') {
+            insights.push({ icon: <Activity className={`${iconCls} text-primary`} />, text: `Your body fat is ${bf.bodyFat}% (${bf.category}). Great body composition — ${bf.leanMass} ${wUnit} lean mass. Focus on strength to maintain it.`, color: 'text-primary' })
+          }
+        }
+
+        // ─ BMR insight
+        if (dashboard.bmr) {
+          insights.push({ icon: <Zap className={`${iconCls} text-blue-400`} />, text: `Your body burns ${dashboard.bmr.bmr.toLocaleString()} kcal at complete rest. Building muscle increases this number over time.`, color: 'text-blue-400' })
+        }
+
+        // ─ Weight trend insight (signed in users with 2+ check-ins)
+        if (user && checkIns.length >= 2) {
+          const first = parseFloat(checkIns[0].inputs.weight)
+          const last = parseFloat(checkIns[checkIns.length - 1].inputs.weight)
+          const diff = last - first
+          const weeks = Math.max(1, Math.round((new Date(checkIns[checkIns.length-1].date).getTime() - new Date(checkIns[0].date).getTime()) / (1000*60*60*24*7)))
+          if (Math.abs(diff) > 0.5) {
+            const perWeek = Math.abs(diff / weeks).toFixed(1)
+            if (diff > 0) {
+              insights.push({ icon: <TrendingUp className={`${iconCls} text-orange-400`} />, text: `You've gained ${Math.abs(diff).toFixed(1)} ${wUnit} over ${weeks} week${weeks > 1 ? 's' : ''} (~${perWeek} ${wUnit}/week). ${b.category === 'underweight' ? 'Great progress!' : 'Consider reviewing your calorie intake.'}`, color: 'text-orange-400' })
+            } else {
+              insights.push({ icon: <TrendingUp className={`${iconCls} text-primary`} />, text: `You've lost ${Math.abs(diff).toFixed(1)} ${wUnit} over ${weeks} week${weeks > 1 ? 's' : ''} (~${perWeek} ${wUnit}/week). ${(diff/weeks) < -1 ? 'Good pace — sustainable loss is 0.5–1 ×/week.' : 'Excellent sustainable pace!'}`, color: 'text-primary' })
+            }
+          }
+        }
+
+        // ─ Consistency nudge
         if (checkIns.length === 1) {
           insights.push({ icon: <TrendingUp className={`${iconCls} text-muted-foreground`} />, text: `Log your second check-in to start seeing your progress trend.`, color: 'text-muted-foreground' })
+        } else if (user && checkIns.length >= 2) {
+          const daysSince = Math.floor((Date.now() - new Date(checkIns[checkIns.length-1].date).getTime()) / (1000*60*60*24))
+          if (daysSince >= 7) {
+            insights.push({ icon: <CheckCircle2 className={`${iconCls} text-muted-foreground`} />, text: `It's been ${daysSince} days since your last check-in. Regular check-ins give you more accurate trend data.`, color: 'text-muted-foreground' })
+          }
         }
+
+        // ─ AI suggestions (signed in only)
+        type AISuggestion = { text: string }
+        const aiSuggestions: AISuggestion[] = []
+        if (user && dashboard.bmi) {
+          if (b.category === 'obese' || b.category === 'overweight') {
+            aiSuggestions.push({ text: 'Start with a 10-minute walk after each meal — it reduces blood sugar spikes and burns an extra 100–150 kcal/day.' })
+            aiSuggestions.push({ text: 'Swap liquid calories (soda, juice, alcohol) for water. This single change often eliminates 200–500 kcal/day.' })
+            if (dashboard.bodyFat && dashboard.bodyFat.bodyFat > 25) {
+              aiSuggestions.push({ text: 'Prioritize protein at every meal (chicken, eggs, legumes). It keeps you fuller longer and preserves lean mass during weight loss.' })
+            }
+          } else if (b.category === 'normal') {
+            aiSuggestions.push({ text: 'You\'re in a great spot. Focus on body recomposition — strength training 3x/week will improve how you look and feel even at the same weight.' })
+            aiSuggestions.push({ text: 'Track your protein intake for a week. Most people eating well still undereat protein, which affects energy and muscle maintenance.' })
+          } else if (b.category === 'underweight') {
+            aiSuggestions.push({ text: 'Add calorie-dense foods to every meal — nuts, avocado, olive oil. They add calories without making you feel overly full.' })
+            aiSuggestions.push({ text: 'Resistance training 3x/week helps convert your calorie surplus into muscle rather than fat.' })
+          }
+          if (dashboard.bmr && dashboard.tdee) {
+            const ratio = dashboard.tdee.tdee / dashboard.bmr.bmr
+            if (ratio < 1.4) {
+              aiSuggestions.push({ text: 'Your activity level appears sedentary. Adding even light daily movement (walks, standing) significantly improves metabolic health.' })
+            }
+          }
+        }
+
         if (insights.length === 0) return null
         return (
-          <div className="rounded-xl border border-border/50 bg-card p-4 space-y-3">
-            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Quick insights</p>
+          <div className="rounded-xl border border-border/50 bg-card p-4 space-y-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Smart Insights</p>
             <div className="space-y-2.5">
               {insights.map((ins, i) => (
                 <div key={i} className="flex items-start gap-3">
@@ -959,6 +1036,32 @@ function HomePage({ dashboard, unitSystem, checkIns, profile, onNewCheckin, onOp
                 </div>
               ))}
             </div>
+            {user && aiSuggestions.length > 0 && (
+              <>
+                <div className="h-px bg-border/50" />
+                <div className="space-y-1.5">
+                  <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                    <Sparkles className="w-3 h-3 text-primary" />AI Suggestions
+                  </p>
+                  <div className="space-y-2">
+                    {aiSuggestions.map((s, i) => (
+                      <div key={i} className="flex items-start gap-2.5 p-2.5 rounded-lg bg-primary/5 border border-primary/10">
+                        <Sparkles className="w-3 h-3 text-primary flex-shrink-0 mt-0.5" />
+                        <p className="text-xs leading-relaxed text-foreground/80">{s.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+            {!user && (
+              <div className="flex items-center gap-2 pt-1">
+                <svg className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                </svg>
+                <p className="text-xs text-muted-foreground">Sign in to unlock AI Suggestions personalized to your data</p>
+              </div>
+            )}
           </div>
         )
       })()}
