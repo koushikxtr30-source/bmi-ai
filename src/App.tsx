@@ -1,10 +1,9 @@
 import { useState, useCallback, useEffect } from 'react'
 import {
-  onAuthStateChanged, signInWithPopup, signOut,
-  createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  onAuthStateChanged, signOut,
   type User
 } from 'firebase/auth'
-import { auth, googleProvider, appleProvider } from '@/lib/firebase'
+import { auth } from '@/lib/firebase'
 import { upsertProfile, saveCheckInToCloud, loadCheckInsFromCloud, loadProfileFromCloud, deleteCheckInsFromCloud, migrateLocalToCloud } from '@/lib/db'
 import { loadCheckIns, saveCheckIn, deleteCheckIns, loadProfile, saveProfile, deleteProfile } from '@/lib/storage'
 import type { UserProfile } from '@/types'
@@ -15,6 +14,8 @@ import { InstallPrompt } from '@/components/InstallPrompt'
 import { ArcGauge } from '@/components/ArcGauge'
 import { SharedFields } from '@/components/SharedFields'
 import { AIPlanSection } from '@/components/AIPlanSection'
+import { AccountPage } from '@/components/AccountPage'
+import { AuthPage } from '@/components/AuthPage'
 import { generateHealthPDF } from '@/lib/pdf'
 import './App.css'
 import {
@@ -732,12 +733,12 @@ function ResultsPayoff({ dashboard, unitSystem, name, onContinue }: {
 }
 
 // ─── Home Page ─────────────────────────────────────────────────────────────
-function HomePage({ dashboard, unitSystem, checkIns, profile, onNewCheckin, onOpenDashboard, onViewProgress, onEditProfile, aiPlan, user, onAiPlan }: {
+function HomePage({ dashboard, unitSystem, checkIns, profile, onNewCheckin, onOpenDashboard, onViewProgress, onEditProfile, aiPlan, user, onAiPlan, onViewPlan }: {
   dashboard: Dashboard; unitSystem: UnitSystem
   checkIns: CheckIn[]; profile: UserProfile | null
   onNewCheckin: () => void; onOpenDashboard: () => void
   onViewProgress: () => void; onEditProfile: () => void
-  aiPlan: AIPlan | null; user: User | null; onAiPlan: () => void
+  aiPlan: AIPlan | null; user: User | null; onAiPlan: () => void; onViewPlan: () => void
 }) {
   const wUnit = unitSystem === 'metric' ? 'kg' : 'lbs'
   const name = profile?.name && profile.name !== 'there' ? profile.name : null
@@ -977,12 +978,13 @@ function HomePage({ dashboard, unitSystem, checkIns, profile, onNewCheckin, onOp
 
       {/* ── AI Health Plan button ── */}
       {checkIns.length > 0 && (
-        <button onClick={onAiPlan}
+        <button onClick={aiPlan ? onViewPlan : onAiPlan}
           className={`w-full flex items-center justify-between px-5 py-4 rounded-xl border transition-all group shadow-sm overflow-hidden relative
+            ${!aiPlan && user ? 'ai-plan-btn' : ''}
             ${aiPlan
               ? 'border-border/60 bg-card hover:border-border hover:bg-secondary/50'
               : user
-              ? 'border-primary/40 bg-primary/5 hover:border-primary/70 hover:bg-primary/10'
+              ? 'border-primary/40 bg-primary/5'
               : 'border-border/40 bg-card hover:bg-secondary/30'
             }`}>
           <div className="flex items-center gap-3">
@@ -1681,154 +1683,8 @@ function DashboardPanel({ dashboard, open, onClose, unitSystem, aiPlan, onGenera
 }
 
 // ─── Account Page ────────────────────────────────────────────────────────────
-function AccountPage({ profile, onEditProfile, user, onSignOut, onSignIn }: {
-  profile: UserProfile | null
-  onEditProfile: () => void
-  user: import('firebase/auth').User | null
-  onSignOut: () => void
-  onSignIn: () => void
-}) {
-  const heightDisplay = profile
-    ? profile.unitSystem === 'imperial'
-      ? `${profile.heightFt}'${profile.heightIn}"`
-      : `${profile.height} cm`
-    : '—'
+// AccountPage, AuthPage imported from @/components/
 
-  const lockedFeatures = [
-    {
-      icon: (
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-        </svg>
-      ),
-      title: 'Apple Health Sync', desc: 'Auto-import weight & workouts', tag: 'Coming soon'
-    },
-    {
-      icon: (
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
-        </svg>
-      ),
-      title: 'Fitbit Integration', desc: 'Sync steps, heart rate & sleep', tag: 'Coming soon'
-    },
-    {
-      icon: (
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
-        </svg>
-      ),
-      title: 'Go Pro', desc: 'AI insights, unlimited history & no ads', tag: 'Upgrade', highlight: true
-    },
-  ]
-
-  return (
-    <div className="space-y-5 animate-fade-in-up">
-      <div>
-        <h2 className="text-xl font-bold">Account</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">Your profile and settings</p>
-      </div>
-
-      {/* Auth card */}
-      {user ? (
-        <div className="rounded-2xl border border-border/60 bg-card p-5 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center flex-shrink-0">
-              <span className="text-sm font-bold text-primary">{user.email?.charAt(0).toUpperCase() ?? '?'}</span>
-            </div>
-            <div>
-              <p className="text-sm font-semibold">{user.displayName || user.email}</p>
-              <p className="text-xs text-muted-foreground">{user.displayName ? user.email : 'Signed in'}</p>
-            </div>
-          </div>
-          <button onClick={onSignOut}
-            className="text-xs text-red-400 hover:text-red-300 border border-red-400/30 hover:border-red-400/60 px-3 py-1.5 rounded-lg transition-colors flex-shrink-0">
-            Sign out
-          </button>
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-primary/30 bg-primary/5 p-5 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold">Not signed in</p>
-            <p className="text-xs text-muted-foreground">Sign in to sync progress across devices</p>
-          </div>
-          <button onClick={onSignIn}
-            className="text-xs font-semibold bg-primary text-primary-foreground px-4 py-2 rounded-xl hover:opacity-90 transition-opacity flex-shrink-0">
-            Sign in
-          </button>
-        </div>
-      )}
-
-      {/* Profile card */}
-      <div className="rounded-2xl border border-border/60 bg-card p-5 space-y-4">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-primary/15 border border-primary/20 flex items-center justify-center flex-shrink-0">
-            <span className="text-xl font-bold text-primary">
-              {profile?.name && profile.name !== 'there' ? profile.name.charAt(0).toUpperCase() : '?'}
-            </span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-base">
-              {profile?.name && profile.name !== 'there' ? profile.name : 'No name set'}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {heightDisplay}{profile?.age ? ` · ${profile.age}y` : ''} · {profile?.sex ?? '—'} · {profile?.unitSystem ?? 'imperial'}
-            </p>
-          </div>
-          <button onClick={onEditProfile}
-            className="text-xs px-3 py-1.5 rounded-lg border border-border/60 hover:border-primary/40 hover:bg-primary/5 text-muted-foreground hover:text-foreground transition-all flex-shrink-0">
-            Edit
-          </button>
-        </div>
-        <div className="grid grid-cols-2 gap-2 pt-1">
-          {[
-            { label: 'Height', value: heightDisplay },
-            { label: 'Age', value: profile?.age ? `${profile.age} yrs` : '—' },
-            { label: 'Sex', value: profile?.sex ? (profile.sex === 'male' ? '♂ Male' : '♀ Female') : '—' },
-            { label: 'Units', value: profile?.unitSystem === 'metric' ? 'Metric' : 'Imperial' },
-          ].map(item => (
-            <div key={item.label} className="rounded-xl bg-secondary/30 px-3 py-2.5">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-0.5">{item.label}</p>
-              <p className="text-sm font-medium capitalize">{item.value}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Locked features */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1">Integrations & Pro</p>
-        {lockedFeatures.map(f => (
-          <div key={f.title} className={`flex items-center gap-4 px-4 py-4 rounded-xl border ${
-            f.highlight
-              ? 'border-primary/30 bg-primary/5'
-              : 'border-border/50 bg-card'
-          } opacity-70`}>
-            <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center flex-shrink-0 text-muted-foreground">{f.icon}</div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold">{f.title}</p>
-              <p className="text-xs text-muted-foreground">{f.desc}</p>
-
-            </div>
-            <span className={`text-[10px] font-semibold px-2 py-1 rounded-full flex-shrink-0 ${
-              f.highlight
-                ? 'bg-primary/15 text-primary border border-primary/20'
-                : 'bg-secondary text-muted-foreground'
-            }`}>
-              {f.tag}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      {/* Data & privacy */}
-      <div className="flex items-center justify-center gap-5 py-3 border-t border-border/30">
-        <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />Local only</span>
-        <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />No account needed</span>
-        <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="w-1.5 h-1.5 rounded-full bg-green-500" />Free</span>
-      </div>
-    </div>
-  )
-}
 
 // ─── Welcome Animation ────────────────────────────────────────────────────────
 function WelcomeAnimation({ name, bmi, lastCheckin, visible }: {
@@ -1903,145 +1759,6 @@ function WelcomeAnimation({ name, bmi, lastCheckin, visible }: {
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 // ─── Auth Page ──────────────────────────────────────────────────────────────
-function AuthPage({ onSuccess, onSkip, isNewUser }: { onSuccess: () => void; onSkip?: () => void; isNewUser?: boolean }) {
-  const [mode, setMode] = useState<'choose' | 'email'>('choose')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [isSignUp, setIsSignUp] = useState(isNewUser ?? false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-
-  const handleGoogle = async () => {
-    setLoading(true); setError('')
-    try { await signInWithPopup(auth, googleProvider); onSuccess() }
-    catch (e: any) { setError(e.message) }
-    finally { setLoading(false) }
-  }
-
-  const handleApple = async () => {
-    setLoading(true); setError('')
-    try { await signInWithPopup(auth, appleProvider); onSuccess() }
-    catch (e: any) { setError(e.message) }
-    finally { setLoading(false) }
-  }
-
-  const handleEmail = async () => {
-    if (!email || !password) { setError('Please enter email and password'); return }
-    setLoading(true); setError('')
-    try {
-      if (isSignUp) await createUserWithEmailAndPassword(auth, email, password)
-      else await signInWithEmailAndPassword(auth, email, password)
-      onSuccess()
-    } catch (e: any) {
-      const msg = e.code === 'auth/user-not-found' ? 'No account found. Try signing up.'
-        : e.code === 'auth/wrong-password' ? 'Incorrect password.'
-        : e.code === 'auth/email-already-in-use' ? 'Email already in use. Try signing in.'
-        : e.code === 'auth/weak-password' ? 'Password must be at least 6 characters.'
-        : e.code === 'auth/invalid-email' ? 'Invalid email address.'
-        : e.message
-      setError(msg)
-    } finally { setLoading(false) }
-  }
-
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12 bg-background">
-      <div className="w-full max-w-sm space-y-6">
-
-        {/* Logo + heading */}
-        <div className="text-center space-y-2">
-          <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
-            <svg className="w-7 h-7 text-primary-foreground" viewBox="0 0 24 24" fill="none">
-              <rect x="3" y="12" width="4" height="9" rx="1" fill="currentColor" opacity=".6"/>
-              <rect x="10" y="7" width="4" height="14" rx="1" fill="currentColor" opacity=".8"/>
-              <rect x="17" y="3" width="4" height="18" rx="1" fill="currentColor"/>
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold">
-            {isNewUser ? 'Save your progress' : 'Welcome back'}
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            {mode === 'email'
-              ? (isSignUp ? 'Create an account to sync your data across devices' : 'Sign in to access your data')
-              : isNewUser
-                ? 'Sign in to unlock Progress tracking and AI Health Plans across all your devices'
-                : 'Sign in to load your data and continue tracking'}
-          </p>
-        </div>
-
-        {mode === 'choose' && (
-          <div className="space-y-3">
-            {/* Google */}
-            <button onClick={handleGoogle} disabled={loading}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-border bg-card hover:bg-secondary transition-colors font-medium text-sm disabled:opacity-50">
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-              </svg>
-              Continue with Google
-            </button>
-
-            {/* Apple */}
-            <button onClick={handleApple} disabled={loading}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-border bg-card hover:bg-secondary transition-colors font-medium text-sm disabled:opacity-50">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-              </svg>
-              Continue with Apple
-            </button>
-
-            {/* Divider */}
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-border" />
-              <span className="text-xs text-muted-foreground">or</span>
-              <div className="flex-1 h-px bg-border" />
-            </div>
-
-            {/* Email */}
-            <button onClick={() => setMode('email')} disabled={loading}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-border bg-card hover:bg-secondary transition-colors font-medium text-sm disabled:opacity-50">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
-              </svg>
-              Continue with Email
-            </button>
-
-            {error && <p className="text-red-400 text-xs text-center">{error}</p>}
-
-            {onSkip && (
-              <button onClick={onSkip} className="w-full text-center text-xs text-muted-foreground hover:text-foreground py-2 transition-colors">
-                Skip for now
-              </button>
-            )}
-          </div>
-        )}
-
-        {mode === 'email' && (
-          <div className="space-y-3">
-            <Input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="h-12" />
-            <Input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="h-12" />
-            <button onClick={handleEmail} disabled={loading}
-              className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50">
-              {loading ? 'Please wait...' : isSignUp ? 'Create account' : 'Sign in'}
-            </button>
-            {error && <p className="text-red-400 text-xs text-center">{error}</p>}
-            <button onClick={() => setIsSignUp(!isSignUp)} className="w-full text-center text-xs text-muted-foreground hover:text-foreground py-1 transition-colors">
-              {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-            </button>
-            <button onClick={() => { setMode('choose'); setError('') }} className="w-full text-center text-xs text-muted-foreground hover:text-foreground py-1 transition-colors">
-              ← Back
-            </button>
-          </div>
-        )}
-
-        <p className="text-center text-[10px] text-muted-foreground">
-          Your data is private and only accessible to you.
-        </p>
-      </div>
-    </div>
-  )
-}
 
 export default function App() {
   // ─ Profile is the source of truth for constants (height, age, sex) ─
@@ -2305,7 +2022,10 @@ export default function App() {
 
   const handleGeneratePlan = () => {
     if (!user) { goToAuth('signup'); return }
-    const plan = generateAIPlan(dashboard, inputs, unitSystem, activityLevel)
+    // Use last check-in inputs if available, otherwise fall back to current inputs
+    const effectiveInputs = checkIns.length > 0 ? checkIns[checkIns.length - 1].inputs : inputs
+    const effectiveActivity = checkIns.length > 0 ? checkIns[checkIns.length - 1].activityLevel : activityLevel
+    const plan = generateAIPlan(dashboard, effectiveInputs, activeUnit, effectiveActivity)
     setAiPlan(plan)
   }
 
@@ -2468,6 +2188,7 @@ export default function App() {
               aiPlan={aiPlan}
               user={user}
               onAiPlan={handleGeneratePlan}
+              onViewPlan={() => setPage('dashboard')}
             />
           ) : page === 'checkin' ? (
             <CheckinWizard
