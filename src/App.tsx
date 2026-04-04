@@ -9,7 +9,13 @@ import { upsertProfile, saveCheckInToCloud, loadCheckInsFromCloud, loadProfileFr
 import { loadCheckIns, saveCheckIn, deleteCheckIns, loadProfile, saveProfile, deleteProfile } from '@/lib/storage'
 import type { UserProfile } from '@/types'
 import { calculateDashboard } from '@/lib/calculations'
-import { jsPDF } from 'jspdf'
+import { generateAIPlan } from '@/lib/aiPlan'
+import { Toast } from '@/components/Toast'
+import { InstallPrompt } from '@/components/InstallPrompt'
+import { ArcGauge } from '@/components/ArcGauge'
+import { SharedFields } from '@/components/SharedFields'
+import { AIPlanSection } from '@/components/AIPlanSection'
+import { generateHealthPDF } from '@/lib/pdf'
 import './App.css'
 import {
   Info, Moon, Sun, Scale, Ruler, Activity,
@@ -108,762 +114,13 @@ const BMI_SEGMENTS = [
   { from: -18,  to: 0,    color: 'hsl(0 84% 60%)' },
 ]
 
-// ─── Rule-Based AI Plan Engine ────────────────────────────────────────────────
-function generateAIPlan(dashboard: Dashboard, inputs: SharedInputs, unitSystem: UnitSystem, activityLevel: ActivityLevel): AIPlan {
-  const bmi = dashboard.bmi?.bmi ?? 22
-  const category = dashboard.bmi?.category ?? 'normal'
-  const tdee = dashboard.tdee?.tdee ?? dashboard.bmr?.bmr ?? 2000
-  const wUnit = unitSystem === 'metric' ? 'kg' : 'lbs'
-  const age = parseInt(inputs.age) || 30
-  const sex = inputs.sex
+// generateAIPlan imported from @/lib/aiPlan
 
-  // ── Determine goal ──
-  const goal: 'lose' | 'maintain' | 'gain' =
-    category === 'underweight' ? 'gain' :
-    category === 'normal' ? 'maintain' : 'lose'
 
-  const goalLabel = goal === 'lose' ? 'Lose Weight' : goal === 'gain' ? 'Gain Weight' : 'Maintain & Tone'
-
-  const summary = goal === 'lose'
-    ? `Based on your BMI of ${bmi}, a gradual calorie deficit with consistent exercise will help you reach a healthy weight. Aim for 0.5–1 ${wUnit}/week loss.`
-    : goal === 'gain'
-    ? `Your BMI of ${bmi} suggests you're underweight. A moderate calorie surplus with strength training will help you build healthy mass.`
-    : `Your BMI of ${bmi} is in the healthy range. Focus on body composition, maintaining weight, and building fitness.`
-
-  // ── Calorie targets ──
-  const lossCals   = Math.round(tdee - 500)
-  const maintainCals = tdee
-  const gainCals   = Math.round(tdee + 300)
-  const targetCals = goal === 'lose' ? lossCals : goal === 'gain' ? gainCals : maintainCals
-
-  // ── Diet options ──
-  const p = Math.round(targetCals * (goal === 'lose' ? 0.35 : goal === 'gain' ? 0.30 : 0.30) / 4)
-  const c = Math.round(targetCals * (goal === 'lose' ? 0.35 : goal === 'gain' ? 0.45 : 0.40) / 4)
-  const f = Math.round(targetCals * (goal === 'lose' ? 0.30 : goal === 'gain' ? 0.25 : 0.30) / 9)
-
-  const dietOptions: DietOption[] = [
-    {
-      name: 'Mediterranean',
-      emoji: '🫒',
-      description: 'Heart-healthy, sustainable, rich in whole foods and healthy fats.',
-      calories: targetCals,
-      macros: { protein: p, carbs: Math.round(c * 1.1), fat: Math.round(f * 1.0) },
-      foods: ['Olive oil', 'Fish & seafood', 'Legumes', 'Whole grains', 'Vegetables', 'Nuts & seeds', 'Greek yogurt'],
-      avoid: ['Processed meats', 'Refined sugars', 'Highly processed foods'],
-      tag: 'Most Sustainable'
-    },
-    {
-      name: 'High Protein',
-      emoji: '🥩',
-      description: 'Preserves muscle during weight loss, increases satiety.',
-      calories: targetCals,
-      macros: { protein: Math.round(p * 1.4), carbs: Math.round(c * 0.8), fat: Math.round(f * 0.9) },
-      foods: ['Chicken breast', 'Eggs', 'Greek yogurt', 'Cottage cheese', 'Lean beef', 'Tofu', 'Whey protein'],
-      avoid: ['Sugary drinks', 'White bread', 'Fried foods'],
-      tag: goal === 'lose' ? 'Best for Fat Loss' : 'Best for Muscle Gain'
-    },
-    {
-      name: 'Low Carb',
-      emoji: '🥗',
-      description: 'Reduces insulin spikes, effective for fat loss and blood sugar.',
-      calories: targetCals,
-      macros: { protein: Math.round(p * 1.2), carbs: Math.round(c * 0.4), fat: Math.round(f * 1.5) },
-      foods: ['Avocado', 'Eggs', 'Leafy greens', 'Nuts', 'Cheese', 'Fatty fish', 'Cauliflower rice'],
-      avoid: ['Bread & pasta', 'Rice', 'Sugar', 'Starchy vegetables', 'Beer'],
-      tag: 'Best for Quick Results'
-    },
-    {
-      name: 'Plant-Based',
-      emoji: '🌱',
-      description: 'Fiber-rich, anti-inflammatory, environmentally conscious.',
-      calories: targetCals,
-      macros: { protein: Math.round(p * 0.9), carbs: Math.round(c * 1.2), fat: Math.round(f * 0.9) },
-      foods: ['Lentils', 'Chickpeas', 'Tofu & tempeh', 'Quinoa', 'Nuts & seeds', 'Oats', 'Berries'],
-      avoid: ['All animal products', 'Processed vegan junk food'],
-      tag: 'Eco-Friendly'
-    },
-  ]
-
-  // ── Exercise routine ──
-  const isDeconditioned = category === 'obese' || activityLevel === 'sedentary'
-
-  const exerciseRoutine: ExerciseDay[] = goal === 'lose' ? [
-    { day: 'Monday',    type: 'Cardio',           intensity: isDeconditioned ? 'Low' : 'Moderate', duration: isDeconditioned ? '20 min' : '35 min', exercises: isDeconditioned ? ['Brisk walking', 'Seated marching', 'Light cycling'] : ['Brisk walking / jogging', 'Cycling or elliptical', 'Jump rope (modified)'], rest: false },
-    { day: 'Tuesday',   type: 'Strength',         intensity: 'Moderate', duration: '30 min', exercises: ['Bodyweight squats 3×12', 'Push-ups (modified ok) 3×10', 'Dumbbell rows 3×12', 'Glute bridges 3×15'], rest: false },
-    { day: 'Wednesday', type: 'Active Recovery',  intensity: 'Low',      duration: '20 min', exercises: ['Yoga or stretching', 'Light walk', 'Foam rolling'], rest: false },
-    { day: 'Thursday',  type: 'Cardio + Core',    intensity: isDeconditioned ? 'Low' : 'Moderate', duration: isDeconditioned ? '25 min' : '40 min', exercises: isDeconditioned ? ['Walking', 'Seated ab crunches', 'Side bends'] : ['Treadmill intervals', 'Plank 3×30s', 'Bicycle crunches 3×15', 'Mountain climbers 3×20'], rest: false },
-    { day: 'Friday',    type: 'Full Body Strength', intensity: 'Moderate', duration: '35 min', exercises: ['Lunges 3×12', 'Incline push-ups 3×10', 'Lat pulldown / band row 3×12', 'Shoulder press 3×12'], rest: false },
-    { day: 'Saturday',  type: 'Fun Activity',     intensity: 'Moderate', duration: '45 min', exercises: ['Swimming', 'Hiking', 'Dance class', 'Sports — pick what you enjoy!'], rest: false },
-    { day: 'Sunday',    type: 'Rest Day',         intensity: '—',        duration: '—',      exercises: ['Full rest or gentle walk', 'Prep meals for the week'], rest: true },
-  ] : goal === 'gain' ? [
-    { day: 'Monday',    type: 'Upper Body Push',  intensity: 'High', duration: '45 min', exercises: ['Bench press 4×8', 'Overhead press 3×10', 'Incline dumbbell press 3×10', 'Tricep dips 3×12'], rest: false },
-    { day: 'Tuesday',   type: 'Lower Body',       intensity: 'High', duration: '45 min', exercises: ['Squats 4×8', 'Romanian deadlift 3×10', 'Leg press 3×12', 'Calf raises 4×15'], rest: false },
-    { day: 'Wednesday', type: 'Rest / Cardio',    intensity: 'Low',  duration: '20 min', exercises: ['Light walk', 'Stretching', 'Foam rolling'], rest: false },
-    { day: 'Thursday',  type: 'Upper Body Pull',  intensity: 'High', duration: '45 min', exercises: ['Deadlift 4×5', 'Pull-ups or lat pulldown 4×8', 'Barbell rows 3×10', 'Bicep curls 3×12'], rest: false },
-    { day: 'Friday',    type: 'Full Body',        intensity: 'Moderate', duration: '40 min', exercises: ['Power cleans 3×5', 'Dips 3×10', 'Bulgarian split squat 3×10', 'Face pulls 3×15'], rest: false },
-    { day: 'Saturday',  type: 'Active Recovery',  intensity: 'Low', duration: '30 min', exercises: ['Light cardio', 'Mobility work', 'Yoga'], rest: false },
-    { day: 'Sunday',    type: 'Rest Day',         intensity: '—',   duration: '—',      exercises: ['Full rest', 'Eat in calorie surplus'], rest: true },
-  ] : [
-    { day: 'Monday',    type: 'Strength',         intensity: 'Moderate', duration: '40 min', exercises: ['Compound lifts: squat, bench, row', 'Progressive overload focus'], rest: false },
-    { day: 'Tuesday',   type: 'Cardio',           intensity: 'Moderate', duration: '30 min', exercises: ['Running / cycling / rowing', 'Zone 2 heart rate (60–70% max)'], rest: false },
-    { day: 'Wednesday', type: 'Strength',         intensity: 'Moderate', duration: '40 min', exercises: ['Deadlift, overhead press, pull-ups', 'Accessory work'], rest: false },
-    { day: 'Thursday',  type: 'Active Recovery',  intensity: 'Low',      duration: '20 min', exercises: ['Yoga', 'Stretching', 'Light walk'], rest: false },
-    { day: 'Friday',    type: 'Strength + HIIT',  intensity: 'High',     duration: '45 min', exercises: ['Full body strength circuit', '10 min HIIT finisher'], rest: false },
-    { day: 'Saturday',  type: 'Outdoor / Sport',  intensity: 'Moderate', duration: '45 min', exercises: ['Hiking', 'Cycling', 'Sport of choice'], rest: false },
-    { day: 'Sunday',    type: 'Rest Day',         intensity: '—',        duration: '—',      exercises: ['Full rest', 'Meal prep'], rest: true },
-  ]
-
-  // ── Goal timeline ──
-  const targetBMI = category === 'underweight' ? 20 : category === 'normal' ? bmi : 24
-  const heightStr = inputs.height || '170'
-  const heightFt = parseFloat(inputs.heightFt) || 5
-  const heightInch = inputs.heightIn !== '' ? parseFloat(inputs.heightIn) : 7
-  const heightM = unitSystem === 'metric'
-    ? parseFloat(heightStr) / 100
-    : ((heightFt * 12) + heightInch) * 0.0254
-  const weightFactor = unitSystem === 'metric' ? 1 : 2.20462
-  const targetWeightKg = targetBMI * heightM * heightM
-  const targetWeight = Math.round(targetWeightKg * weightFactor * 10) / 10
-  const weightDiffKg = Math.abs(targetWeightKg - (parseFloat(inputs.weight) || 70) / (unitSystem === 'imperial' ? 2.20462 : 1))
-  const weeklyChangeKg = goal === 'maintain' ? 0 : goal === 'lose' ? 0.5 : 0.25
-  const weeksToGoal = goal === 'maintain' ? 0 : Math.ceil(weightDiffKg / weeklyChangeKg)
-  const weeklyChange = Math.round(weeklyChangeKg * weightFactor * 10) / 10
-
-  const milestones: Milestone[] = goal === 'maintain' ? [
-    { week: 2,  label: '🏁 Start',        target: 'Establish baseline',  action: 'Log your weight daily for 2 weeks' },
-    { week: 6,  label: '💪 Habit Lock-in', target: 'Exercise 3×/week',   action: 'Schedule workouts, treat them as appointments' },
-    { week: 12, label: '🎯 Body Recomp',   target: 'Reduce body fat %',  action: 'Prioritize protein & strength training' },
-  ] : [
-    { week: 2,  label: '🏁 Week 2',  target: `Lose ${(weeklyChange * 2).toFixed(1)} ${wUnit}`, action: 'Set up your meal plan and exercise schedule' },
-    { week: Math.round(weeksToGoal * 0.25), label: '⚡ 25% Progress', target: `${(Math.round(weightDiffKg * 0.25 * weightFactor * 10)/10)} ${wUnit} ${goal === 'lose' ? 'lost' : 'gained'}`, action: 'Review and adjust plan if progress stalls' },
-    { week: Math.round(weeksToGoal * 0.5),  label: '🔥 Halfway',     target: `${(Math.round(weightDiffKg * 0.5  * weightFactor * 10)/10)} ${wUnit} ${goal === 'lose' ? 'lost' : 'gained'}`, action: 'Take progress photos, reassess macros' },
-    { week: Math.round(weeksToGoal * 0.75), label: '🌟 75% There',   target: `${(Math.round(weightDiffKg * 0.75 * weightFactor * 10)/10)} ${wUnit} ${goal === 'lose' ? 'lost' : 'gained'}`, action: 'Stay consistent, plan maintenance phase' },
-    { week: weeksToGoal, label: '🏆 Goal!', target: `Reach ${targetWeight} ${wUnit}`, action: 'Transition to maintenance plan' },
-  ]
-
-  // ── Daily habits ──
-  const habits = [
-    goal === 'lose' ? '🥤 Drink 2–3L water daily — reduces hunger and boosts metabolism' : '🥤 Drink 2.5–3L water daily to support muscle protein synthesis',
-    '😴 Sleep 7–9 hours — poor sleep increases cortisol and hunger hormones',
-    goal === 'lose' ? '🍽️ Eat slowly and stop at 80% full (hara hachi bu)' : '🍽️ Eat 4–5 smaller meals spread throughout the day',
-    '🚶 Add 7,000–10,000 steps daily — even without gym sessions',
-    goal === 'lose' ? '📊 Track food for at least 4 weeks to build macro awareness' : '📊 Track protein intake — aim for 1.6–2.2g per kg of bodyweight',
-    sex === 'male' ? '🧘 Manage stress — high cortisol increases belly fat storage' : '🧘 Manage stress — cortisol can cause weight fluctuations and cravings',
-    age >= 50 ? '🦴 Prioritize weight-bearing exercise to maintain bone density' : '⏱️ Avoid sitting for more than 60 min — set a movement reminder',
-    '🌅 Eat most of your calories earlier in the day for better metabolic function',
-  ]
-
-  return {
-    goal, goalLabel, summary, dietOptions, exerciseRoutine,
-    timeline: { currentBMI: bmi, targetBMI, targetWeight, weeksToGoal, weeklyChange, milestones },
-    habits,
-    generatedBy: 'rule-based'
-  }
-}
-
-// ─── Toast ────────────────────────────────────────────────────────────────────
-function Toast({ message, visible }: { message: string; visible: boolean }) {
-  return (
-    <div className={`fixed top-[72px] left-1/2 -translate-x-1/2 z-50 transition-all duration-300 pointer-events-none
-      ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'}`}>
-      <div className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-foreground text-background text-sm font-medium shadow-lg whitespace-nowrap">
-        <CheckCircle2 className="w-4 h-4 text-green-400" />
-        {message}
-      </div>
-    </div>
-  )
-}
-
-// ─── PWA Install Prompt ──────────────────────────────────────────────────
-function InstallPrompt() {
-  const [prompt, setPrompt] = useState<any>(null)
-  const [visible, setVisible] = useState(false)
-
-  useEffect(() => {
-    // Check if already installed or previously dismissed
-    if (window.matchMedia('(display-mode: standalone)').matches) return
-    if (sessionStorage.getItem('pwa-dismissed')) return
-
-    const handler = (e: Event) => {
-      e.preventDefault()
-      setPrompt(e)
-      setVisible(true)
-    }
-    window.addEventListener('beforeinstallprompt', handler)
-    return () => window.removeEventListener('beforeinstallprompt', handler)
-  }, [])
-
-  const handleInstall = async () => {
-    if (!prompt) return
-    prompt.prompt()
-    const { outcome } = await prompt.userChoice
-    setVisible(false)
-    setPrompt(null)
-    if (outcome === 'dismissed') {
-      sessionStorage.setItem('pwa-dismissed', '1')
-    }
-  }
-
-  const handleDismiss = () => {
-    setVisible(false)
-    sessionStorage.setItem('pwa-dismissed', '1')
-  }
-
-  if (!visible) return null
-
-  return (
-    <div className="fixed bottom-[72px] sm:bottom-6 left-3 right-3 sm:left-auto sm:right-6 sm:w-80 z-50 animate-fade-in-up">
-      <div className="bg-card border border-border rounded-2xl shadow-2xl p-4 flex items-start gap-3">
-        <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-          <img src="/icon-192.png" alt="mybmi.ai" className="w-8 h-8 rounded-lg" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold">Add to Home Screen</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Install mybmi.ai for quick access, works offline too.</p>
-          <div className="flex gap-2 mt-3">
-            <button
-              onClick={handleInstall}
-              className="flex-1 h-8 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors">
-              Install
-            </button>
-            <button
-              onClick={handleDismiss}
-              className="h-8 px-3 rounded-lg border border-border text-xs text-muted-foreground hover:bg-secondary transition-colors">
-              Not now
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Arc Gauge ────────────────────────────────────────────────────────────────
-function ArcGauge({ value, min, max, color, segments }: {
-  value: number; min: number; max: number; color: string
-  segments: { from: number; to: number; color: string }[]
-}) {
-  const pct = (Math.min(Math.max(value, min), max) - min) / (max - min)
-  const cx = 100, cy = 90, r = 70
-  const toRad = (d: number) => d * Math.PI / 180
-  const ax = (d: number) => cx + r * Math.cos(toRad(d))
-  const ay = (d: number) => cy + r * Math.sin(toRad(d))
-  const needleAngle = -180 + pct * 180
-  // BMI boundary labels at 18.5, 25, 30 mapped to arc angle
-  const bmiToAngle = (bmi: number) => -180 + ((bmi - min) / (max - min)) * 180
-  const labelR = r + 14
-  const lx = (d: number) => cx + labelR * Math.cos(toRad(d))
-  const ly = (d: number) => cy + labelR * Math.sin(toRad(d))
-  return (
-    <svg viewBox="0 0 200 110" className="w-full max-w-[200px] mx-auto">
-      {segments.map((seg, i) => (
-        <path key={i}
-          d={`M ${ax(seg.from)} ${ay(seg.from)} A ${r} ${r} 0 ${seg.to - seg.from > 180 ? 1 : 0} 1 ${ax(seg.to)} ${ay(seg.to)}`}
-          fill="none" stroke={seg.color} strokeWidth="12" strokeLinecap="round" opacity="0.85"
-        />
-      ))}
-      <line x1={cx} y1={cy} x2={cx + (r-10)*Math.cos(toRad(needleAngle))} y2={cy + (r-10)*Math.sin(toRad(needleAngle))} stroke={color} strokeWidth="3" strokeLinecap="round" />
-      <circle cx={cx} cy={cy} r="5" fill={color} />
-      {/* Boundary ticks + labels */}
-      {([{bmi:18.5,label:'18.5'},{bmi:25,label:'25'},{bmi:30,label:'30'}] as {bmi:number;label:string}[]).map(({ bmi, label }) => {
-        const a = bmiToAngle(bmi)
-        const tx = cx + (r-6)*Math.cos(toRad(a)), ty = cy + (r-6)*Math.sin(toRad(a))
-        const tx2 = cx + (r+2)*Math.cos(toRad(a)), ty2 = cy + (r+2)*Math.sin(toRad(a))
-        return (
-          <g key={bmi}>
-            <line x1={tx} y1={ty} x2={tx2} y2={ty2} stroke="rgba(150,150,150,0.6)" strokeWidth="1.5" />
-            <text x={lx(a)} y={ly(a)} textAnchor="middle" dominantBaseline="middle" fontSize="7" fill="rgba(150,150,150,0.8)">{label}</text>
-          </g>
-        )
-      })}
-      {/* Category labels */}
-      <text x={lx(bmiToAngle(14))} y={ly(bmiToAngle(14))+2} textAnchor="middle" fontSize="6" fill="hsl(200 80% 55%)" opacity="0.9">Under</text>
-      <text x={lx(bmiToAngle(21.5))} y={ly(bmiToAngle(21.5))+2} textAnchor="middle" fontSize="6" fill="hsl(142 76% 45%)" opacity="0.9">Normal</text>
-      <text x={lx(bmiToAngle(27.5))} y={ly(bmiToAngle(27.5))+2} textAnchor="middle" fontSize="6" fill="hsl(35 95% 55%)" opacity="0.9">Over</text>
-      <text x={lx(bmiToAngle(35))} y={ly(bmiToAngle(35))+2} textAnchor="middle" fontSize="6" fill="hsl(0 84% 60%)" opacity="0.9">Obese</text>
-    </svg>
-  )
-}
+// Toast, InstallPrompt, ArcGauge imported from @/components/
 
 // ─── Shared Fields ────────────────────────────────────────────────────────────
-function SharedFields({ inputs, errors, unitSystem, onChange }: {
-  inputs: SharedInputs; errors: Record<string, string>; unitSystem: UnitSystem
-  onChange: (f: keyof SharedInputs, v: string) => void
-}) {
-  const wUnit = unitSystem === 'metric' ? 'kg' : 'lbs'
-  // h-12 = 48px touch target on mobile, text-base = 16px prevents iOS zoom
-  const inputCls = (err?: string) => `h-12 text-base ${err ? 'border-destructive' : ''}`
-  return (
-    <div className="grid gap-5">
-      <div className="space-y-2">
-        <Label className="flex items-center gap-2 text-sm font-medium">
-          <Scale className="w-4 h-4 text-muted-foreground" />Weight ({wUnit})
-        </Label>
-        <Input type="number" inputMode="decimal"
-          placeholder={unitSystem === 'metric' ? 'e.g. 70' : 'e.g. 154'}
-          value={inputs.weight} onChange={e => onChange('weight', e.target.value)}
-          className={inputCls(errors.weight)} min="0" step="0.1" />
-        {errors.weight && <p className="text-xs text-destructive">{errors.weight}</p>}
-      </div>
-      <div className="space-y-2">
-        <Label className="flex items-center gap-2 text-sm font-medium">
-          <Ruler className="w-4 h-4 text-muted-foreground" />Height ({unitSystem === 'metric' ? 'cm' : 'ft / in'})
-        </Label>
-        {unitSystem === 'metric' ? (
-          <Input type="number" inputMode="decimal" placeholder="e.g. 175"
-            value={inputs.height} onChange={e => onChange('height', e.target.value)}
-            className={inputCls(errors.height)} min="0" step="0.1" />
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Input type="number" inputMode="numeric" placeholder="Feet"
-                value={inputs.heightFt} onChange={e => onChange('heightFt', e.target.value)}
-                className={inputCls(errors.height)} min="0" />
-              <span className="text-xs text-muted-foreground mt-1 block">Feet</span>
-            </div>
-            <div>
-              <Input type="number" inputMode="numeric" placeholder="Inches"
-                value={inputs.heightIn} onChange={e => onChange('heightIn', e.target.value)}
-                className={inputCls(errors.height)} min="0" max="11" />
-              <span className="text-xs text-muted-foreground mt-1 block">Inches</span>
-            </div>
-          </div>
-        )}
-        {errors.height && <p className="text-xs text-destructive">{errors.height}</p>}
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label className="text-sm font-medium flex items-center gap-1.5">
-                    Age
-                    <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-400 border border-orange-500/20">needed for BMR & TDEE</span>
-                  </Label>
-          <Input type="number" inputMode="numeric" placeholder="e.g. 30"
-            value={inputs.age} onChange={e => onChange('age', e.target.value)}
-            className={inputCls(errors.age)} min="1" max="120" />
-          {errors.age && <p className="text-xs text-destructive">{errors.age}</p>}
-        </div>
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Sex</Label>
-          <div className="flex gap-2 h-12 items-center">
-            {(['male', 'female'] as Sex[]).map(s => (
-              <button key={s} onClick={() => onChange('sex', s)}
-                className={`flex-1 h-10 rounded-md text-sm border transition-colors capitalize touch-target ${
-                  inputs.sex === s ? 'bg-primary text-primary-foreground border-primary' : 'border-input hover:bg-secondary'
-                }`}>
-                {s.charAt(0).toUpperCase() + s.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── AI Plan Section ──────────────────────────────────────────────────────────
-function AIPlanSection({ plan, unitSystem }: { plan: AIPlan; unitSystem: UnitSystem }) {
-  const [dietTab, setDietTab] = useState(0)
-  const [openSection, setOpenSection] = useState<'diet' | 'exercise' | 'timeline' | 'habits' | null>('diet')
-  const wUnit = unitSystem === 'metric' ? 'kg' : 'lbs'
-  const toggle = (s: typeof openSection) => setOpenSection(prev => prev === s ? null : s)
-
-  const goalColor = plan.goal === 'lose' ? '#22c55e' : plan.goal === 'gain' ? '#a855f7' : '#3b82f6'
-  const goalBg   = plan.goal === 'lose' ? 'rgba(34,197,94,0.08)' : plan.goal === 'gain' ? 'rgba(168,85,247,0.08)' : 'rgba(59,130,246,0.08)'
-
-  return (
-    <div className="space-y-3 animate-fade-in-up">
-      {/* Header */}
-      <div className="rounded-xl border p-4" style={{ borderColor: goalColor + '44', background: goalBg }}>
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4" style={{ color: goalColor }} />
-            <span className="text-sm font-semibold">AI Health Plan</span>
-          </div>
-          <Badge variant="outline" style={{ color: goalColor, borderColor: goalColor + '66' }}>
-            {plan.goalLabel}
-          </Badge>
-        </div>
-        <p className="text-xs text-muted-foreground leading-relaxed">{plan.summary}</p>
-        {plan.timeline.weeksToGoal > 0 && (
-          <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/40">
-            <div className="text-center">
-              <p className="text-lg font-bold" style={{ color: goalColor }}>{plan.timeline.weeksToGoal}</p>
-              <p className="text-[10px] text-muted-foreground">weeks</p>
-            </div>
-            <div className="text-center">
-              <p className="text-lg font-bold" style={{ color: goalColor }}>{plan.timeline.weeklyChange}</p>
-              <p className="text-[10px] text-muted-foreground">{wUnit}/week</p>
-            </div>
-            <div className="text-center">
-              <p className="text-lg font-bold" style={{ color: goalColor }}>{plan.timeline.targetWeight}</p>
-              <p className="text-[10px] text-muted-foreground">target {wUnit}</p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ── Diet Plan ── */}
-      <div className="rounded-xl border border-border overflow-hidden">
-        <button onClick={() => toggle('diet')} className="w-full flex items-center justify-between px-4 py-3 hover:bg-secondary/30 transition-colors">
-          <div className="flex items-center gap-2">
-            <Utensils className="w-4 h-4 text-green-400" />
-            <span className="text-sm font-semibold">Diet Plan</span>
-            <span className="text-xs text-muted-foreground">4 options</span>
-          </div>
-          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${openSection === 'diet' ? 'rotate-180' : ''}`} />
-        </button>
-        {openSection === 'diet' && (
-          <div className="px-4 pb-4 space-y-3">
-            {/* Diet tabs */}
-            <div className="flex gap-1.5 overflow-x-auto pb-1">
-              {plan.dietOptions.map((d, i) => (
-                <button key={i} onClick={() => setDietTab(i)}
-                  className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    dietTab === i ? 'bg-primary text-primary-foreground border-primary' : 'border-input hover:bg-secondary'
-                  }`}>
-                  <span>{d.emoji}</span>
-                  <span>{d.name}</span>
-                </button>
-              ))}
-            </div>
-            {/* Selected diet */}
-            {(() => { const d = plan.dietOptions[dietTab]; return (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground leading-relaxed flex-1">{d.description}</p>
-                  <Badge variant="secondary" className="ml-2 text-[10px] flex-shrink-0">{d.tag}</Badge>
-                </div>
-                {/* Calories + macros */}
-                <div className="grid grid-cols-4 gap-2">
-                  <div className="bg-secondary/50 rounded-lg p-2 text-center col-span-1">
-                    <p className="text-[10px] text-muted-foreground">Calories</p>
-                    <p className="text-sm font-bold text-orange-400">{d.calories.toLocaleString()}</p>
-                    <p className="text-[10px] text-muted-foreground">kcal</p>
-                  </div>
-                  <div className="bg-blue-500/10 rounded-lg p-2 text-center">
-                    <p className="text-[10px] text-muted-foreground">Protein</p>
-                    <p className="text-sm font-bold text-blue-400">{d.macros.protein}g</p>
-                  </div>
-                  <div className="bg-yellow-500/10 rounded-lg p-2 text-center">
-                    <p className="text-[10px] text-muted-foreground">Carbs</p>
-                    <p className="text-sm font-bold text-yellow-400">{d.macros.carbs}g</p>
-                  </div>
-                  <div className="bg-purple-500/10 rounded-lg p-2 text-center">
-                    <p className="text-[10px] text-muted-foreground">Fat</p>
-                    <p className="text-sm font-bold text-purple-400">{d.macros.fat}g</p>
-                  </div>
-                </div>
-                {/* Macro bar */}
-                <div>
-                  <div className="flex h-2 rounded-full overflow-hidden gap-0.5">
-                    <div className="bg-blue-400 rounded-l-full" style={{ width: `${Math.round(d.macros.protein*4/d.calories*100)}%` }} />
-                    <div className="bg-yellow-400" style={{ width: `${Math.round(d.macros.carbs*4/d.calories*100)}%` }} />
-                    <div className="bg-purple-400 rounded-r-full" style={{ width: `${Math.round(d.macros.fat*9/d.calories*100)}%` }} />
-                  </div>
-                  <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
-                    <span>Protein {Math.round(d.macros.protein*4/d.calories*100)}%</span>
-                    <span>Carbs {Math.round(d.macros.carbs*4/d.calories*100)}%</span>
-                    <span>Fat {Math.round(d.macros.fat*9/d.calories*100)}%</span>
-                  </div>
-                </div>
-                {/* Foods */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <p className="text-[10px] font-semibold text-green-400 mb-1.5 uppercase tracking-wide flex items-center gap-1"><Apple className="w-3 h-3" />Eat More</p>
-                    <div className="space-y-1">
-                      {d.foods.map(f => <p key={f} className="text-[11px] text-muted-foreground flex items-center gap-1"><span className="text-green-400">✓</span>{f}</p>)}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-semibold text-red-400 mb-1.5 uppercase tracking-wide flex items-center gap-1"><Leaf className="w-3 h-3" />Avoid</p>
-                    <div className="space-y-1">
-                      {d.avoid.map(f => <p key={f} className="text-[11px] text-muted-foreground flex items-center gap-1"><span className="text-red-400">✗</span>{f}</p>)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )})()}
-          </div>
-        )}
-      </div>
-
-      {/* ── Exercise Routine ── */}
-      <div className="rounded-xl border border-border overflow-hidden">
-        <button onClick={() => toggle('exercise')} className="w-full flex items-center justify-between px-4 py-3 hover:bg-secondary/30 transition-colors">
-          <div className="flex items-center gap-2">
-            <Dumbbell className="w-4 h-4 text-blue-400" />
-            <span className="text-sm font-semibold">Exercise Routine</span>
-            <span className="text-xs text-muted-foreground">7-day schedule</span>
-          </div>
-          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${openSection === 'exercise' ? 'rotate-180' : ''}`} />
-        </button>
-        {openSection === 'exercise' && (
-          <div className="px-4 pb-4 space-y-2">
-            {plan.exerciseRoutine.map((day, i) => (
-              <div key={i} className={`rounded-lg border p-3 ${day.rest ? 'border-border/30 opacity-60' : 'border-border'}`}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-muted-foreground w-12">{day.day.slice(0, 3).toUpperCase()}</span>
-                    <span className="text-xs font-semibold">{day.type}</span>
-                  </div>
-                  {!day.rest && (
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">{day.intensity}</Badge>
-                      <span className="text-[10px] text-muted-foreground flex items-center gap-0.5"><Clock className="w-3 h-3" />{day.duration}</span>
-                    </div>
-                  )}
-                </div>
-                <div className="space-y-0.5 ml-14">
-                  {day.exercises.map((ex, j) => (
-                    <p key={j} className="text-[11px] text-muted-foreground">{day.rest ? `💤 ${ex}` : `• ${ex}`}</p>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── Goal Timeline ── */}
-      <div className="rounded-xl border border-border overflow-hidden">
-        <button onClick={() => toggle('timeline')} className="w-full flex items-center justify-between px-4 py-3 hover:bg-secondary/30 transition-colors">
-          <div className="flex items-center gap-2">
-            <Target className="w-4 h-4 text-yellow-400" />
-            <span className="text-sm font-semibold">Goal Timeline</span>
-            {plan.timeline.weeksToGoal > 0 && <span className="text-xs text-muted-foreground">{plan.timeline.weeksToGoal} weeks</span>}
-          </div>
-          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${openSection === 'timeline' ? 'rotate-180' : ''}`} />
-        </button>
-        {openSection === 'timeline' && (
-          <div className="px-4 pb-4 space-y-3">
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="bg-secondary/50 rounded-lg p-2">
-                <p className="text-[10px] text-muted-foreground">Current BMI</p>
-                <p className="text-base font-bold">{plan.timeline.currentBMI}</p>
-              </div>
-              <div className="bg-secondary/50 rounded-lg p-2">
-                <p className="text-[10px] text-muted-foreground">Target BMI</p>
-                <p className="text-base font-bold text-green-400">{plan.timeline.targetBMI}</p>
-              </div>
-              <div className="bg-secondary/50 rounded-lg p-2">
-                <p className="text-[10px] text-muted-foreground">Target Weight</p>
-                <p className="text-base font-bold">{plan.timeline.targetWeight} {wUnit}</p>
-              </div>
-            </div>
-            <div className="space-y-2 relative">
-              <div className="absolute left-[11px] top-3 bottom-3 w-0.5 bg-border" />
-              {plan.timeline.milestones.map((m, i) => (
-                <div key={i} className="flex gap-3 items-start relative">
-                  <div className="w-6 h-6 rounded-full border-2 border-border bg-card flex items-center justify-center flex-shrink-0 z-10">
-                    <CheckCircle2 className="w-3 h-3 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1 pb-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold">{m.label}</span>
-                      <span className="text-[10px] text-muted-foreground">Week {m.week}</span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">{m.target}</p>
-                    <p className="text-[11px] text-primary/70 mt-0.5">→ {m.action}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ── Daily Habits ── */}
-      <div className="rounded-xl border border-border overflow-hidden">
-        <button onClick={() => toggle('habits')} className="w-full flex items-center justify-between px-4 py-3 hover:bg-secondary/30 transition-colors">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-purple-400" />
-            <span className="text-sm font-semibold">Daily Habits</span>
-            <span className="text-xs text-muted-foreground">{plan.habits.length} tips</span>
-          </div>
-          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${openSection === 'habits' ? 'rotate-180' : ''}`} />
-        </button>
-        {openSection === 'habits' && (
-          <div className="px-4 pb-4 space-y-2">
-            {plan.habits.map((h, i) => (
-              <div key={i} className="flex gap-2 p-2 rounded-lg bg-secondary/30">
-                <p className="text-xs text-muted-foreground leading-relaxed">{h}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <p className="text-[10px] text-muted-foreground text-center pb-2">Generated by rule-based engine · AI-powered plans coming in Pro</p>
-    </div>
-  )
-}
-
-// ─── PDF Generator ─────────────────────────────���────────────────────────────
-// Strip emojis and unsupported unicode — jsPDF Helvetica only handles latin chars
-function clean(str: string): string {
-  return str
-    .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')   // emoji block
-    .replace(/[\u{2600}-\u{26FF}]/gu, '')       // misc symbols
-    .replace(/[\u{2700}-\u{27BF}]/gu, '')       // dingbats
-    .replace(/\u2019/g, "'")                    // right single quote
-    .replace(/\u2013/g, '-')                    // en dash
-    .replace(/\u2014/g, '--')                   // em dash
-    .replace(/\u2192/g, '->')                   // arrow right
-    .replace(/[^\x00-\x7E\xA0-\xFF]/g, '')     // everything else non-latin
-    .replace(/\s{2,}/g, ' ')                    // collapse double spaces from removed emojis
-    .trim()
-}
-
-function generateHealthPDF(dashboard: Dashboard, aiPlan: AIPlan | null, unitSystem: UnitSystem, inputs: SharedInputs) {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  const W = 210, margin = 18
-  const col = margin
-  const wUnit = unitSystem === 'metric' ? 'kg' : 'lbs'
-  const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-
-  // ── helpers ──
-  let y = 0
-  const nl = (n = 6) => { y += n }
-  const checkPage = (needed = 20) => { if (y > 270 - needed) { doc.addPage(); y = 20 } }
-
-  const h1 = (text: string, color: [number,number,number] = [15,15,15]) => {
-    checkPage(14)
-    doc.setFontSize(18); doc.setFont('helvetica', 'bold'); doc.setTextColor(...color)
-    doc.text(clean(text), col, y); nl(10)
-  }
-  const h2 = (text: string) => {
-    checkPage(12)
-    doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.setTextColor(30,30,30)
-    doc.text(clean(text), col, y); nl(7)
-  }
-  const h3 = (text: string, color: [number,number,number] = [80,80,80]) => {
-    checkPage(9)
-    doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(...color)
-    doc.text(clean(text).toUpperCase(), col, y); nl(5)
-  }
-  const body = (text: string, indent = 0) => {
-    checkPage(7)
-    doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(60,60,60)
-    const lines = doc.splitTextToSize(clean(text), W - margin * 2 - indent)
-    doc.text(lines, col + indent, y); nl(lines.length * 5)
-  }
-  const bullet = (text: string) => {
-    checkPage(7)
-    doc.setFontSize(8.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(60,60,60)
-    const lines = doc.splitTextToSize(clean(text), W - margin * 2 - 5)
-    doc.text('-', col + 1, y)
-    doc.text(lines, col + 5, y); nl(lines.length * 4.8)
-  }
-  const divider = (color: [number,number,number] = [220,220,220]) => {
-    checkPage(5)
-    doc.setDrawColor(...color); doc.setLineWidth(0.3)
-    doc.line(col, y, W - margin, y); nl(5)
-  }
-  const metricBox = (label: string, value: string, unit: string, x: number, boxW: number, color: [number,number,number]) => {
-    doc.setFillColor(color[0], color[1], color[2]); doc.setDrawColor(...color)
-    doc.roundedRect(x, y, boxW, 18, 2, 2, 'F')
-    doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(80,80,80)
-    doc.text(label, x + boxW/2, y + 5, { align: 'center' })
-    doc.setFontSize(13); doc.setFont('helvetica', 'bold'); doc.setTextColor(20,20,20)
-    doc.text(value, x + boxW/2, y + 12, { align: 'center' })
-    doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(100,100,100)
-    doc.text(unit, x + boxW/2, y + 17, { align: 'center' })
-  }
-
-  // ════════════════════════════════════════════════
-  // COVER HEADER
-  // ════════════════════════════════════════════════
-  doc.setFillColor(12, 12, 14); doc.rect(0, 0, W, 42, 'F')
-  doc.setFontSize(22); doc.setFont('helvetica', 'bold'); doc.setTextColor(255,255,255)
-  doc.text('mybmi.ai', col, 18)
-  doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.setTextColor(160,160,170)
-  doc.text('Personal Health Report', col, 26)
-  doc.setFontSize(8); doc.setTextColor(120,120,130)
-  doc.text(`Generated ${date}`, col, 33)
-  if (inputs.age) {
-    doc.text(`Age ${inputs.age}  |  ${inputs.sex === 'male' ? 'Male' : 'Female'}  |  ${inputs.weight} ${wUnit}`, W - margin, 33, { align: 'right' })
-  }
-  // green accent bar
-  doc.setFillColor(34, 197, 94); doc.rect(0, 40, W, 2, 'F')
-  y = 52
-
-  // ════════════════════════════════════════════════
-  // SECTION 1: METRICS
-  // ════════════════════════════════════════════════
-  h1('Health Metrics')
-  divider()
-
-  const bw = (W - margin * 2 - 9) / 4
-  const bmiColor = dashboard.bmi?.category === 'normal' ? [220,252,231] as [number,number,number] :
-                   dashboard.bmi?.category === 'underweight' ? [219,234,254] as [number,number,number] :
-                   dashboard.bmi?.category === 'overweight'  ? [254,243,199] as [number,number,number] : [254,226,226] as [number,number,number]
-
-  if (dashboard.bmi)   metricBox('BMI',       String(dashboard.bmi.bmi),               dashboard.bmi.label,         col,              bw, bmiColor)
-  if (dashboard.bmr)   metricBox('BMR',       dashboard.bmr.bmr.toLocaleString(),       'kcal/day',                  col + bw + 3,     bw, [255,237,213])
-  if (dashboard.tdee)  metricBox('TDEE',      dashboard.tdee.tdee.toLocaleString(),     'kcal/day',                  col + (bw+3)*2,   bw, [254,252,232])
-  if (dashboard.bodyFat) metricBox('Body Fat', String(dashboard.bodyFat.bodyFat) + '%', dashboard.bodyFat.category,  col + (bw+3)*3,   bw, [243,232,255])
-  nl(22)
-
-  // Detail rows
-  if (dashboard.bmi) {
-    h3('BMI Analysis', [22, 101, 52])
-    body(`Score: ${dashboard.bmi.bmi}  |  Category: ${dashboard.bmi.label}  |  Healthy weight for your height: ${dashboard.bmi.idealWeightMin}-${dashboard.bmi.idealWeightMax} ${wUnit}`)
-    body(dashboard.bmi.tip)
-    nl(2)
-  }
-  if (dashboard.tdee) {
-    h3('Calorie Targets', [161, 98, 7])
-    body(`Maintain weight: ${dashboard.tdee.tdee.toLocaleString()} kcal/day  |  Weight loss (-500): ${dashboard.tdee.deficit.toLocaleString()} kcal/day  |  Weight gain (+300): ${dashboard.tdee.surplus.toLocaleString()} kcal/day`)
-    nl(2)
-  }
-  if (dashboard.bodyFat) {
-    h3('Body Composition', [109, 40, 217])
-    body(`Body Fat: ${dashboard.bodyFat.bodyFat}%  (${dashboard.bodyFat.category})  |  Fat Mass: ${dashboard.bodyFat.fatMass} ${wUnit}  |  Lean Mass: ${dashboard.bodyFat.leanMass} ${wUnit}`)
-    nl(2)
-  }
-
-  // ════════════════════════════════════════════════
-  // SECTION 2: AI PLAN
-  // ════════════════════════════════════════════════
-  if (aiPlan) {
-    checkPage(20)
-    divider()
-    h1('AI Health Plan', [22, 101, 52])
-    body(`Goal: ${aiPlan.goalLabel}`)
-    body(aiPlan.summary)
-    nl(3)
-
-    if (aiPlan.timeline.weeksToGoal > 0) {
-      body(`Timeline: ${aiPlan.timeline.weeksToGoal} weeks  |  Weekly change: ${aiPlan.timeline.weeklyChange} ${wUnit}/week  |  Target weight: ${aiPlan.timeline.targetWeight} ${wUnit}`)
-      nl(2)
-    }
-
-    // Diet
-    checkPage(30)
-    divider()
-    h2('Diet Recommendations')
-    const diet = aiPlan.dietOptions[0]
-    h3(`${diet.name} - ${diet.tag}`, [22, 101, 52])
-    body(diet.description)
-    body(`Daily calories: ${diet.calories.toLocaleString()} kcal  |  Protein: ${diet.macros.protein}g  |  Carbs: ${diet.macros.carbs}g  |  Fat: ${diet.macros.fat}g`)
-    nl(2)
-    h3('Recommended Foods')
-    diet.foods.forEach(f => bullet(f))
-    nl(2)
-    h3('Limit / Avoid', [185, 28, 28])
-    diet.avoid.forEach(f => bullet(f))
-    nl(2)
-
-    // All 4 diet options summary
-    checkPage(20)
-    h3('All Diet Options')
-    aiPlan.dietOptions.forEach(d => {
-      body(`${d.name}: ${d.calories.toLocaleString()} kcal  |  P: ${d.macros.protein}g  C: ${d.macros.carbs}g  F: ${d.macros.fat}g  (${d.tag})`, 3)
-    })
-    nl(3)
-  }
-  doc.save('mybmi-health-report.pdf')
-}
+// SharedFields, AIPlanSection imported from @/components/
 
 
 
@@ -1475,11 +732,12 @@ function ResultsPayoff({ dashboard, unitSystem, name, onContinue }: {
 }
 
 // ─── Home Page ─────────────────────────────────────────────────────────────
-function HomePage({ dashboard, unitSystem, checkIns, profile, onNewCheckin, onOpenDashboard, onViewProgress, onEditProfile }: {
+function HomePage({ dashboard, unitSystem, checkIns, profile, onNewCheckin, onOpenDashboard, onViewProgress, onEditProfile, aiPlan, user, onAiPlan }: {
   dashboard: Dashboard; unitSystem: UnitSystem
   checkIns: CheckIn[]; profile: UserProfile | null
   onNewCheckin: () => void; onOpenDashboard: () => void
   onViewProgress: () => void; onEditProfile: () => void
+  aiPlan: AIPlan | null; user: User | null; onAiPlan: () => void
 }) {
   const wUnit = unitSystem === 'metric' ? 'kg' : 'lbs'
   const name = profile?.name && profile.name !== 'there' ? profile.name : null
@@ -1715,6 +973,49 @@ function HomePage({ dashboard, unitSystem, checkIns, profile, onNewCheckin, onOp
             <p className="text-xs text-muted-foreground max-w-xs mx-auto">Your metrics will appear here after your first check-in.</p>
           </div>
         </div>
+      )}
+
+      {/* ── AI Health Plan button ── */}
+      {checkIns.length > 0 && (
+        <button onClick={onAiPlan}
+          className={`w-full flex items-center justify-between px-5 py-4 rounded-xl border transition-all group shadow-sm overflow-hidden relative
+            ${aiPlan
+              ? 'border-border/60 bg-card hover:border-border hover:bg-secondary/50'
+              : user
+              ? 'border-primary/40 bg-primary/5 hover:border-primary/70 hover:bg-primary/10'
+              : 'border-border/40 bg-card hover:bg-secondary/30'
+            }`}>
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${aiPlan ? 'bg-secondary' : 'bg-primary/10'}`}>
+              {user ? (
+                <Sparkles className={`w-4 h-4 ${aiPlan ? 'text-muted-foreground' : 'text-primary'}`} />
+              ) : (
+                <svg className="w-4 h-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                </svg>
+              )}
+            </div>
+            <div className="text-left">
+              {aiPlan ? (
+                <>
+                  <p className="text-sm font-semibold">Your AI Health Plan</p>
+                  <p className="text-xs text-muted-foreground">Diet · Exercise · Timeline · {aiPlan.goalLabel}</p>
+                </>
+              ) : user ? (
+                <>
+                  <p className="text-sm font-semibold text-primary">Generate your AI Health Plan</p>
+                  <p className="text-xs text-muted-foreground">Personalized diet & exercise based on your stats</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold">AI Health Plan</p>
+                  <p className="text-xs text-muted-foreground">Sign in to unlock your personalized plan</p>
+                </>
+              )}
+            </div>
+          </div>
+          <ChevronRight className={`w-5 h-5 flex-shrink-0 transition-all group-hover:translate-x-0.5 ${aiPlan ? 'text-muted-foreground' : 'text-primary/60 group-hover:text-primary'}`} />
+        </button>
       )}
 
       {/* ── View Dashboard link ── */}
@@ -2529,6 +1830,77 @@ function AccountPage({ profile, onEditProfile, user, onSignOut, onSignIn }: {
   )
 }
 
+// ─── Welcome Animation ────────────────────────────────────────────────────────
+function WelcomeAnimation({ name, bmi, lastCheckin, visible }: {
+  name: string | null
+  bmi: number | null
+  lastCheckin: string | null
+  visible: boolean
+}) {
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+
+  const daysAgo = lastCheckin
+    ? Math.floor((Date.now() - new Date(lastCheckin).getTime()) / (1000 * 60 * 60 * 24))
+    : null
+
+  const lastCheckinText = daysAgo === 0
+    ? 'Checked in today'
+    : daysAgo === 1
+    ? 'Last check-in yesterday'
+    : daysAgo !== null
+    ? `Last check-in ${daysAgo} days ago`
+    : null
+
+  return (
+    <div className={`fixed inset-0 z-50 bg-background flex flex-col items-center justify-center transition-opacity duration-700 ${visible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+      <div className={`flex flex-col items-center gap-5 transition-all duration-700 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        {/* Logo */}
+        <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
+          <svg className="w-8 h-8 text-primary-foreground" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="12" width="4" height="9" rx="1" fill="currentColor" opacity=".5"/>
+            <rect x="10" y="7" width="4" height="14" rx="1" fill="currentColor" opacity=".75"/>
+            <rect x="17" y="3" width="4" height="18" rx="1" fill="currentColor"/>
+          </svg>
+        </div>
+
+        {/* Greeting */}
+        <div className="text-center space-y-1">
+          <h1 className="text-2xl font-bold">
+            {greeting}{name ? `, ${name}` : ''}
+          </h1>
+          <p className="text-sm text-muted-foreground">Welcome back to mybmi.ai</p>
+        </div>
+
+        {/* Stats */}
+        {(bmi || lastCheckinText) && (
+          <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-card border border-border/60">
+            {bmi && (
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">BMI</p>
+                <p className="text-xl font-bold text-primary">{bmi}</p>
+              </div>
+            )}
+            {bmi && lastCheckinText && (
+              <div className="w-px h-8 bg-border" />
+            )}
+            {lastCheckinText && (
+              <p className="text-sm text-muted-foreground">{lastCheckinText}</p>
+            )}
+          </div>
+        )}
+
+        {/* Loading dots */}
+        <div className="flex gap-1.5">
+          {[0, 1, 2].map(i => (
+            <div key={i} className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-pulse" style={{ animationDelay: `${i * 200}ms` }} />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main App ─────────────────────────────────────────────────────────────────
 // ─── Auth Page ──────────────────────────────────────────────────────────────
 function AuthPage({ onSuccess, onSkip, isNewUser }: { onSuccess: () => void; onSkip?: () => void; isNewUser?: boolean }) {
@@ -2675,6 +2047,7 @@ export default function App() {
   // ─ Profile is the source of truth for constants (height, age, sex) ─
   const [user, setUser] = useState<User | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
+  const [showWelcome, setShowWelcome] = useState(false)
   const [profile, setProfile] = useState<UserProfile | null>(() => loadProfile())
   const [isDark, setIsDark] = useState(true)
   const [dashboardOpen, setDashboardOpen] = useState(false)
@@ -2732,6 +2105,9 @@ export default function App() {
           // Cloud has data — use as source of truth
           localStorage.setItem('mybmi_checkins', JSON.stringify(cloudCheckIns))
           setCheckIns(cloudCheckIns)
+          setDashboard(cloudCheckIns[cloudCheckIns.length - 1].dashboard)
+          setShowWelcome(true)
+          setTimeout(() => setShowWelcome(false), 3000)
         } else {
           // No cloud data — migrate any existing localStorage data up
           const local = loadCheckIns()
@@ -2963,6 +2339,13 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col transition-colors duration-300">
+      {/* Welcome animation — shown after sign-in for returning users */}
+      <WelcomeAnimation
+        name={profile?.name && profile.name !== 'there' ? profile.name : null}
+        bmi={dashboard.bmi?.bmi ?? null}
+        lastCheckin={checkIns.length > 0 ? checkIns[checkIns.length - 1].date : null}
+        visible={showWelcome}
+      />
       {/* ── Header ── */}
       <header className="border-b border-border/40 sticky top-0 z-30 bg-background/90 backdrop-blur-xl"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}>
@@ -3080,8 +2463,11 @@ export default function App() {
               profile={profile}
               onNewCheckin={handleNewCheckin}
               onOpenDashboard={() => setPage('dashboard')}
-              onViewProgress={() => setPage('progress')}
+              onViewProgress={() => user ? setPage('progress') : goToAuth('signin')}
               onEditProfile={handleEditProfile}
+              aiPlan={aiPlan}
+              user={user}
+              onAiPlan={handleGeneratePlan}
             />
           ) : page === 'checkin' ? (
             <CheckinWizard
