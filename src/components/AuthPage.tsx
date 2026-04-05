@@ -51,13 +51,7 @@ export function AuthPage({ onSuccess, onSkip, isNewUser }: {
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12 bg-background">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center space-y-2">
-          <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
-            <svg className="w-7 h-7 text-primary-foreground" viewBox="0 0 24 24" fill="none">
-              <rect x="3" y="12" width="4" height="9" rx="1" fill="currentColor" opacity=".6"/>
-              <rect x="10" y="7" width="4" height="14" rx="1" fill="currentColor" opacity=".8"/>
-              <rect x="17" y="3" width="4" height="18" rx="1" fill="currentColor"/>
-            </svg>
-          </div>
+          <img src="/icon-auth.svg" alt="mybmi.ai" className="w-14 h-14 mx-auto mb-4" />
           <h1 className="text-2xl font-bold">{isNewUser ? 'Save your progress' : 'Welcome back'}</h1>
           <p className="text-muted-foreground text-sm">
             {mode === 'email'

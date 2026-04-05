@@ -84,7 +84,8 @@ export default defineConfig({
 
       // Dev mode — enable SW in development so you can test
       devOptions: {
-        enabled: false,
+        enabled: true,
+        type: 'module',
       }
     })
   ],

@@ -1815,13 +1815,7 @@ function WelcomeAnimation({ name, bmi, lastCheckin, visible }: {
     <div className={`fixed inset-0 z-50 bg-background flex flex-col items-center justify-center transition-opacity duration-700 ${visible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
       <div className={`flex flex-col items-center gap-5 transition-all duration-700 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         {/* Logo */}
-        <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
-          <svg className="w-8 h-8 text-primary-foreground" viewBox="0 0 24 24" fill="none">
-            <rect x="3" y="12" width="4" height="9" rx="1" fill="currentColor" opacity=".5"/>
-            <rect x="10" y="7" width="4" height="14" rx="1" fill="currentColor" opacity=".75"/>
-            <rect x="17" y="3" width="4" height="18" rx="1" fill="currentColor"/>
-          </svg>
-        </div>
+        <img src="/icon-welcome.svg" alt="mybmi.ai" className="w-16 h-16" />
 
         {/* Greeting */}
         <div className="text-center space-y-1">
@@ -2174,12 +2168,10 @@ export default function App() {
         style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-              <svg className="w-4 h-4 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
-              </svg>
-            </div>
-            <span className="font-bold text-sm tracking-tight">mybmi.ai</span>
+            <img src={isDark ? '/icon-header.svg' : '/icon-header-light.svg'} alt="mybmi.ai" className="w-7 h-7 rounded-lg flex-shrink-0" />
+            <span className="text-sm tracking-tight font-bold">
+              <span className="text-primary">my</span><span className="text-foreground">bmi</span><span className="text-primary">.ai</span>
+            </span>
             <span className="text-muted-foreground/60 text-xs hidden sm:block font-normal">Health Calculators</span>
           </div>
           <div className="flex items-center gap-2">
