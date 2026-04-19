@@ -10,16 +10,21 @@ export function loadCheckIns(): CheckIn[] {
   } catch { return [] }
 }
 
-export function saveCheckIn(c: CheckIn): void {
+export function saveCheckIn(c: CheckIn): boolean {
   try {
     const existing = loadCheckIns()
     existing.push(c)
     localStorage.setItem(STORAGE_KEY, JSON.stringify(existing))
-  } catch {}
+    return true
+  } catch (err) {
+    console.error('saveCheckIn failed:', err)
+    return false
+  }
 }
 
-export function deleteCheckIns(): void {
-  try { localStorage.removeItem(STORAGE_KEY) } catch {}
+export function deleteCheckIns(): boolean {
+  try { localStorage.removeItem(STORAGE_KEY); return true }
+  catch (err) { console.error('deleteCheckIns failed:', err); return false }
 }
 
 // ─── Profile ──────────────────────────────────────────────────────────────────
@@ -32,10 +37,12 @@ export function loadProfile(): UserProfile | null {
   } catch { return null }
 }
 
-export function saveProfile(p: UserProfile): void {
-  try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)) } catch {}
+export function saveProfile(p: UserProfile): boolean {
+  try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); return true }
+  catch (err) { console.error('saveProfile failed:', err); return false }
 }
 
-export function deleteProfile(): void {
-  try { localStorage.removeItem(PROFILE_KEY) } catch {}
+export function deleteProfile(): boolean {
+  try { localStorage.removeItem(PROFILE_KEY); return true }
+  catch (err) { console.error('deleteProfile failed:', err); return false }
 }

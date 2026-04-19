@@ -283,9 +283,14 @@ export default function App() {
         activityLevel,
         dashboard: result,
       }
-      saveCheckIn(newCheckIn)
+      const saved = saveCheckIn(newCheckIn)
+      if (!saved) showToast('Could not save locally — storage may be full')
       setCheckIns(loadCheckIns())
-      if (user) saveCheckInToCloud(user.uid, newCheckIn)
+      if (user) {
+        saveCheckInToCloud(user.uid, newCheckIn).then(r => {
+          if (!r.ok) showToast('Check-in saved locally but cloud sync failed')
+        })
+      }
     }
     if (user) {
       upsertProfile(user.uid, {
@@ -297,6 +302,8 @@ export default function App() {
         height_in: newProfile.heightIn,
         age: newProfile.age,
         sex: newProfile.sex,
+      }).then(r => {
+        if (!r.ok) showToast('Profile saved locally but cloud sync failed')
       })
     }
     if (isEditingProfile) {
@@ -333,10 +340,13 @@ export default function App() {
         activityLevel,
         dashboard: result,
       }
-      saveCheckIn(newCheckIn)
+      const saved = saveCheckIn(newCheckIn)
+      if (!saved) {
+        showToast('Could not save — storage may be full')
+        return
+      }
       setCheckIns(loadCheckIns())
       if (user) {
-        // Ensure profile exists in Supabase before saving check-in
         upsertProfile(user.uid, {
           email: user.email,
           name: profile.name,
@@ -346,11 +356,13 @@ export default function App() {
           height_in: profile.heightIn,
           age: profile.age,
           sex: profile.sex,
-        }).then(() => saveCheckInToCloud(user.uid, newCheckIn))
+        }).then(() => saveCheckInToCloud(user.uid, newCheckIn)).then(r => {
+          if (r && !r.ok) showToast('Saved locally but cloud sync failed')
+        })
       }
     }
 
-    showToast('Check-in saved!')
+    showToast('Check-in saved ✓')
     setPage('dashboard')
   }
 

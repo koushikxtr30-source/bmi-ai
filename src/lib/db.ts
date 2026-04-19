@@ -11,27 +11,45 @@ export async function upsertProfile(uid: string, profile: {
   height_in: string
   age: string
   sex: string
-}) {
-  const { error } = await supabase
-    .from('profiles')
-    .upsert({ id: uid, ...profile, updated_at: new Date().toISOString() })
-  if (error) console.error('upsertProfile error:', error.message)
+}): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('profiles')
+      .upsert({ id: uid, ...profile, updated_at: new Date().toISOString() })
+    if (error) {
+      console.error('upsertProfile error:', error.message)
+      return { ok: false, error: error.message }
+    }
+    return { ok: true }
+  } catch (err: any) {
+    console.error('upsertProfile exception:', err)
+    return { ok: false, error: err?.message ?? 'Unknown error' }
+  }
 }
 
 // ─── Check-in sync ────────────────────────────────────────────────────────────
-export async function saveCheckInToCloud(uid: string, checkIn: CheckIn) {
-  const { error } = await supabase
-    .from('checkins')
-    .upsert({
-      id:             checkIn.id,
-      user_id:        uid,
-      date:           checkIn.date,
-      unit_system:    checkIn.unitSystem,
-      inputs:         checkIn.inputs,
-      activity_level: checkIn.activityLevel,
-      dashboard:      checkIn.dashboard,
-    })
-  if (error) console.error('saveCheckInToCloud error:', error.message)
+export async function saveCheckInToCloud(uid: string, checkIn: CheckIn): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('checkins')
+      .upsert({
+        id:             checkIn.id,
+        user_id:        uid,
+        date:           checkIn.date,
+        unit_system:    checkIn.unitSystem,
+        inputs:         checkIn.inputs,
+        activity_level: checkIn.activityLevel,
+        dashboard:      checkIn.dashboard,
+      })
+    if (error) {
+      console.error('saveCheckInToCloud error:', error.message)
+      return { ok: false, error: error.message }
+    }
+    return { ok: true }
+  } catch (err: any) {
+    console.error('saveCheckInToCloud exception:', err)
+    return { ok: false, error: err?.message ?? 'Unknown error' }
+  }
 }
 
 export async function loadCheckInsFromCloud(uid: string): Promise<CheckIn[]> {
@@ -53,12 +71,21 @@ export async function loadCheckInsFromCloud(uid: string): Promise<CheckIn[]> {
   }))
 }
 
-export async function deleteCheckInsFromCloud(uid: string) {
-  const { error } = await supabase
-    .from('checkins')
-    .delete()
-    .eq('user_id', uid)
-  if (error) console.error('deleteCheckInsFromCloud error:', error.message)
+export async function deleteCheckInsFromCloud(uid: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('checkins')
+      .delete()
+      .eq('user_id', uid)
+    if (error) {
+      console.error('deleteCheckInsFromCloud error:', error.message)
+      return { ok: false, error: error.message }
+    }
+    return { ok: true }
+  } catch (err: any) {
+    console.error('deleteCheckInsFromCloud exception:', err)
+    return { ok: false, error: err?.message ?? 'Unknown error' }
+  }
 }
 
 // ─── Profile load from cloud ──────────────────────────────────────────────────
