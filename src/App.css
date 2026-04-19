@@ -1,4 +1,16 @@
-/* ─── App-specific styles ────────────────────────────────────────────────── */
+/* ─── Fix dead space: use dvh units for reliable full-height layout ─── */
+html, body {
+  height: 100%;
+  /* Prevent scroll bounce / elastic overscroll on iOS causing dead space */
+  overscroll-behavior-y: none;
+}
+
+#root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
 
 /* Smooth transitions */
 button, input, .card {
@@ -87,7 +99,7 @@ html.dark .card-hero {
   left: 0;
   right: 0;
   /* Push bar content above iPhone home indicator */
-  padding-bottom: calc(var(--safe-bottom) + 4px);
+  padding-bottom: env(safe-area-inset-bottom, 4px);
   z-index: 50;
   display: flex;
   border-top: 1px solid hsl(var(--border) / 0.5);
@@ -168,4 +180,41 @@ html.dark .card-hero {
 
 .ai-plan-btn:hover * {
   color: white !important;
+}
+
+/* ─── Accessibility: minimum readable text sizes on mobile ────────────── */
+@media (max-width: 639px) {
+  .text-\[10px\] { font-size: 11px !important; }
+  .text-\[11px\] { font-size: 12px !important; }
+  .text-\[9px\]  { font-size: 10px !important; }
+}
+
+/* ─── Focus visible: clear keyboard navigation indicator ─────────────── */
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ─── Loading spinner for async button states ──────────────────────── */
+@keyframes btn-spin {
+  to { transform: rotate(360deg); }
+}
+.btn-spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: btn-spin 0.65s linear infinite;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+/* ─── Print ──────────────────────────────────────────────────── */
+@media print {
+  header, footer, nav { display: none; }
+  .card { break-inside: avoid; border: 1px solid #ccc; }
+  main { padding-bottom: 0 !important; }
 }

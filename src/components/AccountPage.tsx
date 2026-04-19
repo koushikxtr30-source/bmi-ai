@@ -113,7 +113,7 @@ export function AccountPage({ profile, onEditProfile, user, onSignOut, onSignIn 
       <div className="space-y-2">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-1">Integrations & Pro</p>
         {lockedFeatures.map(f => (
-          <div key={f.title} className={`flex items-center gap-4 px-4 py-4 rounded-xl border ${f.highlight ? 'border-primary/30 bg-primary/5' : 'border-border/50 bg-card'} opacity-70`}>
+          <div key={f.title} className={`flex items-center gap-4 px-4 py-4 rounded-xl border ${f.highlight ? 'border-primary/30 bg-primary/5' : 'border-border/50 bg-card'}`}>
             <div className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center flex-shrink-0 text-muted-foreground">{f.icon}</div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold">{f.title}</p>

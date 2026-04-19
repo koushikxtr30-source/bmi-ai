@@ -435,7 +435,7 @@ export default function App() {
   )
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col transition-colors duration-300">
+    <div className="bg-background text-foreground flex flex-col transition-colors duration-300" style={{ minHeight: '100dvh' }}>
       {/* Welcome animation — shown after sign-in for returning users */}
       <WelcomeAnimation
         name={profile?.name && profile.name !== 'there' ? profile.name : null}
@@ -490,7 +490,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="flex-1 py-6 sm:py-12 mobile-page-padding">
+      <main className="flex-1 py-6 sm:py-10 pb-28 sm:pb-12">
         <div className="max-w-2xl mx-auto px-4 sm:px-6">
           {/* Hero — only shown on onboarding */}
           {page === 'onboarding' && (
@@ -648,18 +648,18 @@ export default function App() {
       </main>
 
       {/* ── Bottom Tab Bar (mobile only) — hidden during onboarding ── */}
-      <nav className={`bottom-tab-bar transition-transform duration-300 ${(page === 'onboarding' || page === 'results') ? 'translate-y-full pointer-events-none' : ''}`}>
+      <nav aria-label="Main navigation" className={`bottom-tab-bar transition-transform duration-300 ${(page === 'onboarding' || page === 'results') ? 'translate-y-full pointer-events-none' : ''}`}>
         {/* Home */}
-        <button onClick={() => setPage('home')} className={`bottom-tab-item relative ${page === 'home' ? 'text-primary' : 'text-muted-foreground'}`} aria-label="Home">
+        <button onClick={() => setPage('home')} className={`bottom-tab-item relative ${page === 'home' ? 'text-primary' : 'text-muted-foreground'}`} aria-label="Home" aria-current={page === 'home' ? 'page' : undefined}>
           {page === 'home' && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-primary" />}
-          <Home className="w-4 h-4" />
+          <Home className="w-5 h-5" />
           <span className="text-[10px] font-medium">Home</span>
         </button>
         {/* Progress */}
-        <button onClick={() => user ? setPage('progress') : goToAuth('signin')} className={`bottom-tab-item relative ${page === 'progress' ? 'text-primary' : 'text-muted-foreground'}`} aria-label="Progress">
+        <button onClick={() => user ? setPage('progress') : goToAuth('signin')} className={`bottom-tab-item relative ${page === 'progress' ? 'text-primary' : 'text-muted-foreground'}`} aria-label="Progress" aria-current={page === 'progress' ? 'page' : undefined}>
           {page === 'progress' && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-primary" />}
           <div className="relative">
-            <TrendingUp className="w-4 h-4" />
+            <TrendingUp className="w-5 h-5" />
             {checkIns.length > 0 && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary border border-background" />}
           </div>
           <span className="text-[10px] font-medium">Progress</span>
@@ -667,26 +667,26 @@ export default function App() {
         {/* Check-in — center, pill CTA */}
         <button onClick={handleNewCheckin} className={`bottom-tab-item relative ${page === 'checkin' ? 'text-primary' : 'text-muted-foreground'}`} aria-label="New Check-in">
           {page === 'checkin' && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-primary" />}
-          <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
-            <svg className="w-4 h-4 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
+            <svg className="w-5 h-5 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
           </div>
           <span className="text-[10px] font-medium">Check-in</span>
         </button>
         {/* Dashboard */}
-        <button onClick={() => setPage('dashboard')} className={`bottom-tab-item relative ${page === 'dashboard' ? 'text-primary' : 'text-muted-foreground'}`} aria-label="Dashboard">
+        <button onClick={() => setPage('dashboard')} className={`bottom-tab-item relative ${page === 'dashboard' ? 'text-primary' : 'text-muted-foreground'}`} aria-label="Dashboard" aria-current={page === 'dashboard' ? 'page' : undefined}>
           {page === 'dashboard' && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-primary" />}
           <div className="relative">
-            <BarChart2 className="w-4 h-4" />
+            <BarChart2 className="w-5 h-5" />
             {dashboardCount > 0 && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary border border-background" />}
           </div>
           <span className="text-[10px] font-medium">Dashboard</span>
         </button>
         {/* Account */}
-        <button onClick={() => setPage('account')} className={`bottom-tab-item relative ${page === 'account' ? 'text-primary' : 'text-muted-foreground'}`} aria-label="Account">
+        <button onClick={() => setPage('account')} className={`bottom-tab-item relative ${page === 'account' ? 'text-primary' : 'text-muted-foreground'}`} aria-label="Account" aria-current={page === 'account' ? 'page' : undefined}>
           {page === 'account' && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-primary" />}
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
           </svg>
           <span className="text-[10px] font-medium">Account</span>
