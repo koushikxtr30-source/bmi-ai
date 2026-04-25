@@ -1,6 +1,7 @@
 /* ─── Fix dead space: use dvh units for reliable full-height layout ─── */
 html, body {
   height: 100%;
+  background: hsl(var(--background));
   /* Prevent scroll bounce / elastic overscroll on iOS causing dead space */
   overscroll-behavior-y: none;
 }
@@ -9,6 +10,7 @@ html, body {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  background: hsl(var(--background));
 }
 
 
