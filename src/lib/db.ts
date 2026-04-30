@@ -1,3 +1,6 @@
+// ⚠️  BEFORE PRODUCTION: Enable RLS on `profiles` and `checkins` tables in Supabase.
+//    Policies must use Firebase UID (not current_setting). RLS is disabled during dev.
+
 import { supabase } from './supabase'
 import type { CheckIn } from '@/types'
 
