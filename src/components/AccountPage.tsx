@@ -25,23 +25,7 @@ export function AccountPage({ profile, onEditProfile, user, onSignOut, onSignIn 
     },
     {
       icon: (
-        <svg className="w-5 h-5" viewBox="0 0 32 32" fill="currentColor">
-          <circle cx="16" cy="3.5" r="2.5"/>
-          <circle cx="16" cy="10" r="2.8"/>
-          <circle cx="16" cy="16.5" r="3"/>
-          <circle cx="16" cy="23" r="2.8"/>
-          <circle cx="16" cy="29" r="2.5"/>
-          <circle cx="22" cy="7" r="2.5"/>
-          <circle cx="22" cy="13.5" r="2.8"/>
-          <circle cx="22" cy="20" r="2.5"/>
-          <circle cx="10" cy="7" r="2.5"/>
-          <circle cx="10" cy="13.5" r="2.8"/>
-          <circle cx="10" cy="20" r="2.5"/>
-          <circle cx="27" cy="10.5" r="2.2"/>
-          <circle cx="27" cy="16.5" r="2.2"/>
-          <circle cx="5" cy="10.5" r="2.2"/>
-          <circle cx="5" cy="16.5" r="2.2"/>
-        </svg>
+        <img src="/fitbit-logo.png" alt="Fitbit" className="w-5 h-5 object-contain" />
       ),
       title: 'Fitbit Integration', desc: 'Sync steps, heart rate & sleep', tag: 'Coming soon', highlight: false,
     },
